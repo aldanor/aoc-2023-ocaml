@@ -23,10 +23,15 @@ let get_year () =
     let time = gmtime time in
     time.tm_year + 1900
 
+let trim_leading_zero s =
+  let len = String.length s in
+  if len > 1 && s.[0] = '0' then String.sub s 1 (len - 1) else s
+
 let download_input day filename =
   let year = get_year () in
   let url =
-    Printf.sprintf "https://adventofcode.com/%d/day/%s/input" year day
+    Printf.sprintf "https://adventofcode.com/%d/day/%s/input" year
+      (trim_leading_zero day)
   in
   let token = get_token () in
   let headers = Header.init () in
