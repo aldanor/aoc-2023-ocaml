@@ -23,7 +23,7 @@ let get_year () =
     let time = gmtime time in
     time.tm_year + 1900
 
-let download_input day fn =
+let download_input day filename =
   let year = get_year () in
   let url =
     Printf.sprintf "https://adventofcode.com/%d/day/%s/input" year day
@@ -46,6 +46,8 @@ let download_input day fn =
   in
   let body = Lwt_main.run body in
   let body = String.trim body in
-  let file = Out_channel.open_text fn in
+  let dir = Filename.dirname filename in
+  if not (Sys.file_exists dir) then Unix.mkdir dir 0o755 ;
+  let file = Out_channel.open_text filename in
   Out_channel.output_string file body ;
   Out_channel.close file
