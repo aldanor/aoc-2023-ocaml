@@ -32,9 +32,7 @@ let download_input day filename =
   let headers = Header.init () in
   let headers = Header.add headers "Cookie" ("session=" ^ token) in
   let headers =
-    Header.add headers "User-Agent"
-      "github.com/fangyi-zhou/advent-of-code-ocaml-starter by \
-       me+aoc@fangyi.io"
+    Header.add headers "User-Agent" "github.com/aldanor/aoc-2023-ocaml"
   in
   let uri = Uri.of_string url in
   let body =
