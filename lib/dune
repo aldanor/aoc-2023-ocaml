@@ -1,6 +1,8 @@
+(ocamllex (modules day02l))
+(menhir (modules day02p))
 (library
  (name aoc)
  (inline_tests)
- (libraries unix mtime mtime.clock.os)
+ (libraries core unix fmt mtime mtime.clock.os)
  (preprocess
   (pps ppx_expect)))
