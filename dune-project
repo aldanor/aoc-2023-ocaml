@@ -10,6 +10,7 @@
     core_unix
     stdio
     mtime
+    menhir
     cohttp-lwt-unix
     lwt_ssl
     ppx_expect
