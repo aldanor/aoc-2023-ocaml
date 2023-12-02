@@ -1,6 +1,6 @@
 (library
  (name aoc)
  (inline_tests)
- (libraries unix mtime)
+ (libraries unix mtime mtime.clock.os)
  (preprocess
   (pps ppx_expect)))
