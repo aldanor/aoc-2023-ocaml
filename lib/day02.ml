@@ -1,7 +1,6 @@
-open! Imports
-open Core
-open Lexing
 open Base
+open Lexing
+open Imports
 
 let err_msg lexbuf msg =
   let pos = lexbuf.lex_curr_p in
@@ -28,25 +27,22 @@ module M = struct
   let part1 games =
     (* 2237 *)
     let max = [|12; 13; 14|] in
-    let count_ok (color, count) = count <= max.(color) in
+    let count_ok (color, n) = n <= max.(color) in
     let game_ok game = game |> List.concat |> List.for_all ~f:count_ok in
-    let fold_game i acc game = if game_ok game then acc + i + 1 else acc in
-    let ans = List.foldi games ~init:0 ~f:fold_game in
+    let game_score i game = if game_ok game then i + 1 else 0 in
+    let ans = games |> List.mapi ~f:game_score |> sum_ints in
     Printf.sprintf "%d" ans |> Stdlib.print_endline
 
   let part2 games =
     (* 66681 *)
     let game_power game =
       let max = [|1; 1; 1|] in
-      let update_max (color, count) =
-        max.(color) <- Int.max max.(color) count
-      in
-      let () = game |> List.concat |> List.iter ~f:update_max in
+      let update_max (color, n) = max.(color) <- Int.max max.(color) n in
+      game |> List.concat |> List.iter ~f:update_max ;
       Array.fold max ~init:1 ~f:( * )
     in
-    games |> List.map ~f:game_power
-    |> List.fold ~init:0 ~f:( + )
-    |> Printf.sprintf "%d" |> Stdlib.print_endline
+    games |> List.map ~f:game_power |> sum_ints |> Printf.sprintf "%d"
+    |> Stdlib.print_endline
 end
 
 include M

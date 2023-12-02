@@ -31,3 +31,5 @@ let parse_digit c =
   match c with
   | '0' .. '9' -> Some (Char.to_int c - Char.to_int '0')
   | _ -> None
+
+let sum_ints l = List.fold l ~init:0 ~f:( + )
