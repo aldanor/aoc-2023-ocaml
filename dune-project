@@ -6,6 +6,7 @@
   (depends
     base
     core
+    core_unix
     stdio
     mtime
     cohttp-lwt-unix
