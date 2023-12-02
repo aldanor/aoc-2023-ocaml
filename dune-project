@@ -11,6 +11,7 @@
     stdio
     mtime
     menhir
+    fmt
     cohttp-lwt-unix
     lwt_ssl
     ppx_expect
