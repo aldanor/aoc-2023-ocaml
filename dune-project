@@ -5,6 +5,7 @@
   (name aoc)
   (depends
     base
+    core
     stdio
     mtime
     cohttp-lwt-unix
