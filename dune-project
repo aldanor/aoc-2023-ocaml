@@ -4,6 +4,8 @@
 (package
   (name aoc)
   (depends
+    base
+    stdio
     cohttp-lwt-unix
     lwt_ssl
     ppx_expect
