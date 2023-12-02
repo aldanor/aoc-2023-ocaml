@@ -1,3 +1,4 @@
+open! Base
 open! Imports
 
 module M = struct
