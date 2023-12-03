@@ -6,7 +6,7 @@ authors: ["Ivan Smirnov <github@ivan.smirnov.ie>"]
 license: "MIT"
 homepage: "https://github.com/aldanor/aoc-2023-ocaml"
 depends: [
-  "dune" {>= "2.7"}
+  "dune" {>= "3.0"}
   "base"
   "core"
   "core_bench"

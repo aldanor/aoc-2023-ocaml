@@ -1,4 +1,4 @@
-(lang dune 2.7)
+(lang dune 3.0)
 (using menhir 2.1)
 (name aoc)
 (generate_opam_files true)
