@@ -1,4 +1,5 @@
 (executable
  (public_name aoc)
  (name main)
- (libraries cohttp-lwt-unix lwt_ssl core core_unix core_unix.sys_unix stdio aoc))
+ (libraries cohttp-lwt-unix lwt_ssl core core_unix core_unix.command_unix core_unix.sys_unix stdio aoc)
+ (preprocess (pps ppx_jane)))

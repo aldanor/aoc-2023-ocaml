@@ -3,43 +3,71 @@ open Core
 open Stdio
 open Utils
 
-let () =
-  let args = Sys.get_argv () in
-  let day = args.(1) in
-  let input_file = sprintf "inputs/%s.in" day in
-  let () =
-    match Sys_unix.file_exists input_file with
-    | `Yes -> ()
-    | _ -> download_input day input_file
+let get_day_module day =
+  let modules : (module Day.S) list =
+    [ (module Day01)
+    ; (module Day02)
+    ; (module Day03)
+    ; (module Day04)
+    ; (module Day05)
+    ; (module Day06)
+    ; (module Day07)
+    ; (module Day08)
+    ; (module Day09)
+    ; (module Day10)
+    ; (module Day11)
+    ; (module Day12)
+    ; (module Day13)
+    ; (module Day14)
+    ; (module Day15)
+    ; (module Day16)
+    ; (module Day17)
+    ; (module Day18)
+    ; (module Day19)
+    ; (module Day20)
+    ; (module Day21)
+    ; (module Day22)
+    ; (module Day23)
+    ; (module Day24)
+    ; (module Day25) ]
   in
-  let inputs = In_channel.read_all input_file in
-  let (module Day : Day.S) =
-    match day with
-    | "01" -> (module Day01)
-    | "02" -> (module Day02)
-    | "03" -> (module Day03)
-    | "04" -> (module Day04)
-    | "05" -> (module Day05)
-    | "06" -> (module Day06)
-    | "07" -> (module Day07)
-    | "08" -> (module Day08)
-    | "09" -> (module Day09)
-    | "10" -> (module Day10)
-    | "11" -> (module Day11)
-    | "12" -> (module Day12)
-    | "13" -> (module Day13)
-    | "14" -> (module Day14)
-    | "15" -> (module Day15)
-    | "16" -> (module Day16)
-    | "17" -> (module Day17)
-    | "18" -> (module Day18)
-    | "19" -> (module Day19)
-    | "20" -> (module Day20)
-    | "21" -> (module Day21)
-    | "22" -> (module Day22)
-    | "23" -> (module Day23)
-    | "24" -> (module Day24)
-    | "25" -> (module Day25)
-    | _ -> failwith "invalid day"
-  in
+  List.nth_exn modules (day - 1)
+
+let read_inputs day =
+  let input_file = sprintf "inputs/%02d.in" day in
+  ( match Sys_unix.file_exists input_file with
+  | `Yes -> ()
+  | _ -> download_input day input_file ) ;
+  In_channel.read_all input_file
+
+let run_single ~day ~bench ~part1 ~part2 =
+  let _ = (bench, part1, part2) in
+  let inputs = read_inputs day in
+  let (module Day : Day.S) = get_day_module day in
   Day.run inputs
+
+let run_command ~day ~bench ~part1 ~part2 =
+  let days =
+    day |> Option.value_map ~default:(List.range 1 26) ~f:List.return
+  in
+  let part1, part2 =
+    match (part1, part2) with false, false -> (true, true) | parts -> parts
+  in
+  List.iter days ~f:(fun day -> run_single ~day ~bench ~part1 ~part2)
+
+let () =
+  let param_day =
+    Command.Arg_type.create (fun day ->
+        match Int.of_string_opt day with
+        | Some day when day >= 1 && day <= 25 -> day
+        | _ -> failwith "expected an integer between 1 and 25" )
+  in
+  let command =
+    Command.basic ~summary:"AoC 2023"
+      (let%map_open.Command day = anon (maybe ("day" %: param_day))
+       and bench = flag "-b" no_arg ~doc:" Run benchmarks"
+       and part1 = flag "-1" no_arg ~doc:" Part 1 only"
+       and part2 = flag "-2" no_arg ~doc:" Part 2 only" in
+       fun () -> run_command ~day ~bench ~part1 ~part2 )
+  in
+  Command_unix.run command
