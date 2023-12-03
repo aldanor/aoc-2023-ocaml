@@ -4,6 +4,11 @@
 (generate_opam_files true)
 (package
   (name aoc)
+  (synopsis "Advent of Code 2023 (OCaml)")
+  (license "MIT")
+  (maintainers "Ivan Smirnov <github@ivan.smirnov.ie>")
+  (authors "Ivan Smirnov <github@ivan.smirnov.ie>")
+  (homepage "https://github.com/aldanor/aoc-2023-ocaml")
   (depends
     base
     core
