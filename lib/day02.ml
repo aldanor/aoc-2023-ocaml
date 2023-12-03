@@ -30,8 +30,7 @@ module M = struct
     let count_ok (color, n) = n <= max.(color) in
     let game_ok game = game |> List.concat |> List.for_all ~f:count_ok in
     let game_score i game = if game_ok game then i + 1 else 0 in
-    let ans = games |> List.mapi ~f:game_score |> sum_ints in
-    Printf.sprintf "%d" ans |> Stdlib.print_endline
+    games |> List.mapi ~f:game_score |> sum_ints |> Int.to_string
 
   let part2 games =
     (* 66681 *)
@@ -41,8 +40,7 @@ module M = struct
       game |> List.concat |> List.iter ~f:update_max ;
       Array.fold max ~init:1 ~f:( * )
     in
-    games |> List.map ~f:game_power |> sum_ints |> Printf.sprintf "%d"
-    |> Stdlib.print_endline
+    games |> List.map ~f:game_power |> sum_ints |> Int.to_string
 end
 
 include M

@@ -20,6 +20,7 @@ module M = struct
   let parse inputs = String.split_lines inputs |> List.map ~f:String.to_list
 
   let part1 lines =
+    (* 54239 *)
     let find_digit chars =
       chars
       |> List.find ~f:Char.is_digit
@@ -29,13 +30,12 @@ module M = struct
     let first_digit line = find_digit line in
     let last_digit line = find_digit (List.rev line) in
     let string_code line = (10 * first_digit line) + last_digit line in
-    let ans =
-      lines |> List.map ~f:string_code |> List.fold ~init:0 ~f:( + )
-    in
-    (* 54239 *)
-    Printf.sprintf "%d" ans |> Stdlib.print_endline
+    lines |> List.map ~f:string_code
+    |> List.fold ~init:0 ~f:( + )
+    |> Int.to_string
 
   let part2 lines =
+    (* 55343 *)
     let numbers = List.map ~f:String.to_list numbers in
     let numbers_rev = List.map ~f:List.rev numbers in
     let rec zip_shortest xs ys =
@@ -67,11 +67,9 @@ module M = struct
     let first_digit line = find_first_digit line numbers in
     let last_digit line = find_first_digit (List.rev line) numbers_rev in
     let string_code line = (10 * first_digit line) + last_digit line in
-    let ans =
-      lines |> List.map ~f:string_code |> List.fold ~init:0 ~f:( + )
-    in
-    (* 55343 *)
-    Printf.sprintf "%d" ans |> Stdlib.print_endline
+    lines |> List.map ~f:string_code
+    |> List.fold ~init:0 ~f:( + )
+    |> Int.to_string
 end
 
 include M
