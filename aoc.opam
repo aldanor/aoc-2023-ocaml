@@ -4,6 +4,7 @@ depends: [
   "dune" {>= "2.7"}
   "base"
   "core"
+  "core_bench"
   "core_unix"
   "stdio"
   "mtime"

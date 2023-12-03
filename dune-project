@@ -7,6 +7,7 @@
   (depends
     base
     core
+    core_bench
     core_unix
     stdio
     mtime
