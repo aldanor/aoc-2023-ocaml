@@ -101,7 +101,7 @@ end
 include M
 include Day.Make (M)
 
-let example =
+let%expect_test _ =
   "467..114..\n\
    ...*......\n\
    ..35..633.\n\
@@ -111,12 +111,5 @@ let example =
    ..592.....\n\
    ......755.\n\
    ...$.*....\n\
-   .664.598.."
-
-let%expect_test _ =
-  example |> parse |> part1 |> printf "%s" ;
-  [%expect {| 4361 |}]
-
-let%expect_test _ =
-  example |> parse |> part2 |> printf "%s" ;
-  [%expect {| 467835 |}]
+   .664.598.." |> run_test ;
+  [%expect {| 4361 467835 |}]

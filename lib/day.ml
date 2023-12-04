@@ -3,6 +3,8 @@ open Core
 module type S = sig
   val run : ?only_part1:bool -> ?only_part2:bool -> string -> unit
 
+  val run_test : ?part:int -> string -> unit
+
   val bench :
        ?name:string
     -> ?only1:bool
@@ -37,6 +39,15 @@ module Make (Impl : Impl) : S = struct
       if not only_part1 then run_solution (fun () -> Impl.part2 parsed)
     in
     ()
+
+  let run_test ?(part = 0) inputs =
+    let p = Impl.parse inputs in
+    match part with
+    | 1 -> Impl.part1 p |> printf "%s\n" |> ignore
+    | 2 -> Impl.part2 p |> printf "%s\n" |> ignore
+    | _ ->
+        Impl.part1 p |> printf "%s" |> ignore ;
+        Impl.part2 p |> printf " %s\n" |> ignore
 
   let bench ?(name = "") ?(only1 = false) ?(only2 = false) ?(parse = false)
       ?(quota = "1s") inputs =

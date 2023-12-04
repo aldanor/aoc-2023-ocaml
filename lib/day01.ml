@@ -77,6 +77,16 @@ end
 include M
 include Day.Make (M)
 
-let example = ""
+let%expect_test _ =
+  "1abc2\npqr3stu8vwx\na1b2c3d4e5f\ntreb7uchet" |> run_test ~part:1 ;
+  [%expect {| 142 |}]
 
-let%expect_test _ = run example ; [%expect {| |}]
+let%expect_test _ =
+  "two1nine\n\
+   eightwothree\n\
+   abcone2threexyz\n\
+   xtwone3four\n\
+   4nineeightseven2\n\
+   zoneight234\n\
+   7pqrstsixteen\n" |> run_test ~part:2 ;
+  [%expect {| 281 |}]

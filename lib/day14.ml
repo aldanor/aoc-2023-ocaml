@@ -13,6 +13,4 @@ end
 include M
 include Day.Make (M)
 
-let example = ""
-
-let%expect_test _ = run example ; [%expect {| |}]
+let%expect_test _ = "" |> run_test ; [%expect {| |}]
