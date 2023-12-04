@@ -32,4 +32,9 @@ let parse_digit c =
   | '0' .. '9' -> Some (Char.to_int c - Char.to_int '0')
   | _ -> None
 
+let parse_digit_unchecked c = Char.to_int c - Char.to_int '0'
+
 let sum_ints l = List.fold l ~init:0 ~f:( + )
+
+let str_find_char_exn s c =
+  s |> String.findi ~f:(fun _ x -> Char.(x = c)) |> Option.value_exn |> fst
