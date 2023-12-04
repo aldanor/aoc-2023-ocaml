@@ -2,23 +2,23 @@ open Imports
 open Base
 open Core
 
-module Game = struct
-  type t =
-    { s: string
-    ; n_win: int
-    ; n_num: int
-    ; n_lines: int
-    ; n_pre: int
-    ; line_len: int
-    ; arr: int array }
+type game =
+  { s: string
+  ; n_win: int
+  ; n_num: int
+  ; n_lines: int
+  ; n_pre: int
+  ; line_len: int
+  ; arr: int array }
 
+module Game = struct
   let create s =
     let n_pre = str_find_char_exn s ':' + 2 in
     let n_win = (str_find_char_exn s '|' - n_pre) / 3 in
     let n_num = ((str_find_char_exn s '\n' - n_pre - 1) / 3) - n_win in
     let line_len = 1 + (1 + n_pre + (3 * (n_win + n_num))) in
     let n_lines = (1 + String.length s) / line_len in
-    let arr = Array.create ~len:100 (-1) in
+    let arr = Array.create_local ~len:100 (-1) in
     {s; n_win; n_num; n_lines; n_pre; line_len; arr}
 
   let n_win g line_id =
@@ -31,10 +31,9 @@ module Game = struct
       i := !i + 3
     done ;
     let n_win = ref 0 in
-    let i = ref ((line_id * g.line_len) + g.n_pre + 2 + (3 * g.n_win)) in
+    i := !i + 2 ;
     for _ = 0 to g.n_num - 1 do
-      let k = parse_num2 !i in
-      let v = Array.unsafe_get g.arr k in
+      let v = parse_num2 !i |> Array.unsafe_get g.arr in
       if v = line_id then n_win := !n_win + 1 ;
       i := !i + 3
     done ;
@@ -42,21 +41,32 @@ module Game = struct
 end
 
 module M = struct
-  type t = string
+  type t = game
 
-  let parse s = s
+  let parse s = Game.create s
 
-  let part1 s =
+  let part1 g =
     (* 15268 *)
-    let g = Game.create s in
     let ans = ref 0 in
     for line_id = 0 to g.n_lines - 1 do
       let n_win = Game.n_win g line_id in
-      if not (n_win = 0) then ans := !ans + Int.shift_left 1 (n_win - 1)
+      if n_win <> 0 then ans := !ans + Int.shift_left 1 (n_win - 1)
     done ;
     !ans |> Int.to_string
 
-  let part2 _ = ""
+  let part2 g =
+    (* 6283755 *)
+    let counts = Array.create ~len:g.n_lines 1 in
+    for line_id = 0 to g.n_lines - 1 do
+      let n_win = Game.n_win g line_id in
+      if n_win <> 0 then
+        let n = Array.unsafe_get counts line_id in
+        for i = line_id + 1 to line_id + n_win do
+          let old = Array.unsafe_get counts i in
+          Array.unsafe_set counts i (old + n)
+        done
+    done ;
+    Array.fold counts ~init:0 ~f:( + ) |> Int.to_string
 end
 
 include M
