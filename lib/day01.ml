@@ -15,27 +15,29 @@ let numbers =
   ; "nine" ]
 
 module M = struct
-  type t = char list list
+  type t = string
 
-  let parse inputs = String.split_lines inputs |> List.map ~f:String.to_list
+  let parse inputs = inputs
 
-  let part1 lines =
+  let part1 inputs =
     (* 54239 *)
-    let find_digit chars =
-      chars
-      |> List.find ~f:Char.is_digit
-      |> Option.value ~default:'0' |> Char.to_int
-      |> fun c -> c - Char.to_int '0'
-    in
-    let first_digit line = find_digit line in
-    let last_digit line = find_digit (List.rev line) in
-    let string_code line = (10 * first_digit line) + last_digit line in
-    lines |> List.map ~f:string_code
-    |> List.fold ~init:0 ~f:( + )
-    |> Int.to_string
+    let nan = Char.min_value in
+    let digit c = Char.to_int c - Char.to_int '0' in
+    let num2 x y = (10 * digit x) + digit y in
+    let total, first, last = (ref 0, ref nan, ref nan) in
+    String.iter inputs ~f:(function
+      | '0' .. '9' as c ->
+          last := c ;
+          if Char.(!first = nan) then first := c
+      | '\n' ->
+          total := !total + num2 !first !last ;
+          first := nan
+      | _ -> () ) ;
+    !total + num2 !first !last |> Int.to_string
 
   let part2 lines =
     (* 55343 *)
+    let lines = String.split_lines lines |> List.map ~f:String.to_list in
     let numbers = List.map ~f:String.to_list numbers in
     let numbers_rev = List.map ~f:List.rev numbers in
     let rec zip_shortest xs ys =
