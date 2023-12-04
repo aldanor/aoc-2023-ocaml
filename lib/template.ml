@@ -1,9 +1,9 @@
 open! Imports
 
 module M = struct
-  type t = unit
+  type t = string
 
-  let parse _inputs = ()
+  let parse s = s
 
   let part1 _ = ""
 
@@ -13,6 +13,4 @@ end
 include M
 include Day.Make (M)
 
-let example = ""
-
-let%expect_test _ = run_test example ; [%expect {| |}]
+let%expect_test _ = "" |> run_test ; [%expect {| |}]

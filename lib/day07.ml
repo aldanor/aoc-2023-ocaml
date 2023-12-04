@@ -1,9 +1,9 @@
 open! Imports
 
 module M = struct
-  type t = unit
+  type t = string
 
-  let parse _inputs = ()
+  let parse s = s
 
   let part1 _ = ""
 
