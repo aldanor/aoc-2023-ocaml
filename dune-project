@@ -19,7 +19,6 @@
     mtime
     menhir
     fmt
-    progress
     cohttp-lwt-unix
     lwt_ssl
     ppx_expect
