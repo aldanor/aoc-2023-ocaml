@@ -20,16 +20,23 @@ module M = struct
   let part1 s =
     (* 525181 *)
     let s, start, len, w = pad_input s in
-    let is_symbol i =
-      i |> String.get s
+    let is_sym i =
+      i |> String.unsafe_get s
       |> function '.' | '0' .. '9' | '\n' -> false | _ -> true
     in
-    let get_digit i = i |> String.get s |> Char.get_digit in
-    let offsets_left = [-w - 1; -w; -1; w - 1; w] in
-    let offsets_right = [-w + 1; 1; w + 1] in
-    let has_neighbors o i = List.exists o ~f:(fun o -> is_symbol (i + o)) in
-    let check_left = has_neighbors offsets_left in
-    let check_right = has_neighbors offsets_right in
+    let get_digit i = i |> String.unsafe_get s |> Char.get_digit in
+    let check_left i =
+      let u, d = (i - w, i + w) in
+      is_sym (u - 1)
+      || is_sym u
+      || is_sym (i - 1)
+      || is_sym (d - 1)
+      || is_sym d
+    in
+    let check_right i =
+      let r = i + 1 in
+      is_sym (r - w) || is_sym r || is_sym (r + w)
+    in
     let running, neighbors, total = (ref None, ref false, ref 0) in
     for i = start to start + (len - 1) + 1 do
       match (get_digit i, !running) with
@@ -51,26 +58,22 @@ module M = struct
     let s, start, len, w = pad_input s in
     let is_digit i = i |> String.unsafe_get s |> Char.is_digit in
     let get_digit i = i |> String.unsafe_get s |> Char.get_digit in
-    let offsets =
-      [| (-w - 1, false)
-       ; (-w, true)
-       ; (-w + 1, true)
-       ; (-1, false)
-       ; (1, false)
-       ; (w - 1, false)
-       ; (w, true)
-       ; (w + 1, true) |]
+    let neighbors3 i out =
+      let l, m, r = (i - 1, i, i + 1) in
+      match (is_digit l, is_digit m, is_digit r) with
+      | false, false, true -> r :: out
+      | false, true, _ -> m :: out
+      | true, false, true -> l :: r :: out
+      | true, _, _ -> l :: out
+      | _ -> out
     in
-    let neighboring_numbers i =
-      Array.fold offsets ~init:(false, [])
-        ~f:(fun (prev_digit, acc) (o, contiguous) ->
-          let j = i + o in
-          match (is_digit j, prev_digit, contiguous) with
-          | false, _, _ -> (false, acc)
-          | _, false, _ -> (true, j :: acc)
-          | _, _, true -> (true, acc)
-          | _, _, false -> (true, j :: acc) )
-      |> snd
+    let neighbor1 i out = if is_digit i then i :: out else out in
+    let find_neighbors i =
+      []
+      |> neighbors3 (i - w)
+      |> neighbors3 (i + w)
+      |> neighbor1 (i - 1)
+      |> neighbor1 (i + 1)
     in
     let rec number_backtrack i =
       match is_digit (i - 1) with
@@ -88,7 +91,7 @@ module M = struct
     let ans = ref 0 in
     for i = start to start + len do
       if Char.(String.unsafe_get s i = '*') then
-        match neighboring_numbers i with
+        match find_neighbors i with
         | [a; b] -> ans := !ans + (parse_num a * parse_num b)
         | _ -> ()
     done ;
