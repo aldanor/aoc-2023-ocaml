@@ -5,6 +5,7 @@ maintainer: ["Ivan Smirnov <github@ivan.smirnov.ie>"]
 authors: ["Ivan Smirnov <github@ivan.smirnov.ie>"]
 license: "MIT"
 homepage: "https://github.com/aldanor/aoc-2023-ocaml"
+bug-reports: "https://github.com/aldanor/aoc-2023-ocaml/issues"
 depends: [
   "dune" {>= "3.0"}
   "base"

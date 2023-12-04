@@ -9,6 +9,7 @@
   (maintainers "Ivan Smirnov <github@ivan.smirnov.ie>")
   (authors "Ivan Smirnov <github@ivan.smirnov.ie>")
   (homepage "https://github.com/aldanor/aoc-2023-ocaml")
+  (bug_reports "https://github.com/aldanor/aoc-2023-ocaml/issues")
   (depends
     base
     core
