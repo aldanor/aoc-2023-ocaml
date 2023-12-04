@@ -35,9 +35,8 @@ let get_day_module day =
 
 let read_inputs day =
   let input_file = sprintf "inputs/%02d.in" day in
-  ( match Sys_unix.file_exists input_file with
-  | `Yes -> ()
-  | _ -> download_input day input_file ) ;
+  if not (Sys_unix.file_exists_exn input_file) then
+    download_input day input_file ;
   In_channel.read_all input_file
 
 let run_single ~day ~bench ~part1 ~part2 =
