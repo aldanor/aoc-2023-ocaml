@@ -43,7 +43,8 @@ let run_single ~day ~bench ~part1 ~part2 =
   let _ = (bench, part1, part2) in
   let inputs = read_inputs day in
   let (module Day : Day.S) = get_day_module day in
-  Day.run inputs
+  if bench then Day.bench ~only1:false ~only2:false inputs
+  else Day.run inputs
 
 let run_command ~day ~bench ~part1 ~part2 =
   let days =

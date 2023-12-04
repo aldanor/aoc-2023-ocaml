@@ -3,6 +3,6 @@
 (library
  (name aoc)
  (inline_tests)
- (libraries core unix fmt mtime mtime.clock.os)
+ (libraries core unix fmt mtime mtime.clock.os core_bench progress)
  (preprocess
   (pps ppx_expect)))
