@@ -49,26 +49,27 @@ module M = struct
   let part2 s =
     (* 84289137 *)
     let s, start, len, w = pad_input s in
-    let is_digit i = i |> String.get s |> Char.is_digit in
+    let is_digit i = i |> String.unsafe_get s |> Char.is_digit in
+    let get_digit i = i |> String.unsafe_get s |> Char.get_digit in
     let offsets =
-      [ (-w - 1, false)
-      ; (-w, true)
-      ; (-w + 1, true)
-      ; (-1, false)
-      ; (1, false)
-      ; (w - 1, false)
-      ; (w, true)
-      ; (w + 1, true) ]
+      [| (-w - 1, false)
+       ; (-w, true)
+       ; (-w + 1, true)
+       ; (-1, false)
+       ; (1, false)
+       ; (w - 1, false)
+       ; (w, true)
+       ; (w + 1, true) |]
     in
     let neighboring_numbers i =
-      List.fold offsets ~init:(false, [])
+      Array.fold offsets ~init:(false, [])
         ~f:(fun (prev_digit, acc) (o, contiguous) ->
           let j = i + o in
           match (is_digit j, prev_digit, contiguous) with
           | false, _, _ -> (false, acc)
-          | true, false, _ -> (true, j :: acc)
-          | true, true, true -> (true, acc)
-          | true, true, false -> (true, j :: acc) )
+          | _, false, _ -> (true, j :: acc)
+          | _, _, true -> (true, acc)
+          | _, _, false -> (true, j :: acc) )
       |> snd
     in
     let rec number_backtrack i =
@@ -77,7 +78,6 @@ module M = struct
       | true -> number_backtrack (i - 1)
     in
     let parse_num i =
-      let get_digit j = j |> String.get s |> Char.get_digit in
       let rec loop acc j =
         match get_digit j with
         | None -> acc
@@ -85,13 +85,14 @@ module M = struct
       in
       number_backtrack i |> loop 0
     in
-    Sequence.range start (start + len)
-    |> Sequence.filter ~f:(fun i -> Char.(String.get s i = '*'))
-    |> Sequence.map ~f:neighboring_numbers
-    |> Sequence.filter_map ~f:(function [a; b] -> Some (a, b) | _ -> None)
-    |> Sequence.fold ~init:0 ~f:(fun acc (a, b) ->
-           acc + (parse_num a * parse_num b) )
-    |> Int.to_string
+    let ans = ref 0 in
+    for i = start to start + len do
+      if Char.(String.unsafe_get s i = '*') then
+        match neighboring_numbers i with
+        | [a; b] -> ans := !ans + (parse_num a * parse_num b)
+        | _ -> ()
+    done ;
+    !ans |> Int.to_string
 end
 
 include M
