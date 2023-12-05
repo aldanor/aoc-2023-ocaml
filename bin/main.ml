@@ -46,7 +46,9 @@ let run_single ~day ~bench ~part1 ~part2 ~parse =
   let only1, only2 =
     match (part1, part2) with true, true -> (false, false) | parts -> parts
   in
-  if bench then Day.bench ~only1 ~only2 ~parse inputs
+  if bench then (
+    printf "  Day %02d\n" day |> ignore ;
+    Day.bench ~only1 ~only2 ~parse inputs )
   else Day.run inputs ~only1 ~only2
 
 let run_command ~day ~bench ~part1 ~part2 ~parse =
