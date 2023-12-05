@@ -1,13 +1,48 @@
+open Imports
 open Core
 
 module Interval = struct
-  (* could make it generic over the comparable type etc, but we won't
-     over-generalize it for this task *)
   type t = {low: int; high: int} [@@deriving show]
 
   let create low high = {low; high}
 
   let contains {low; high} value = low <= value && value < high
+
+  let overlaps a b = max a.low b.low < min a.high b.high
+
+  let is_empty {low; high} = low >= high
+
+  let shift {low; high} value = {low= low + value; high= high + value}
+
+  let compare_low a b = compare a.low b.low
+
+  let merge a b =
+    if max a.low b.low > min a.high b.high then None
+    else
+      let low, high = (min a.low b.low, max a.high b.high) in
+      Some {low; high}
+
+  let intersect a b =
+    let low, high = (max a.low b.low, min a.high b.high) in
+    if low < high then Some {low; high} else None
+
+  (* returns collection of intervals that join up to `a`, with a flag of
+     whether it's an intersection with `b` or not *)
+  let split_by_interval a b =
+    let low, high = (max a.low b.low, min a.high b.high) in
+    let center = {low; high} in
+    if is_empty center then [(a, false)]
+    else
+      let left = {low= a.low; high= low} in
+      let right = {low= high; high= a.high} in
+      let left_right =
+        match (is_empty left, is_empty right) with
+        | true, true -> []
+        | true, false -> [(right, false)]
+        | false, true -> [(left, false)]
+        | false, false -> [(left, false); (right, false)]
+      in
+      (center, true) :: left_right
 end
 
 module IntervalTree = struct
@@ -45,61 +80,28 @@ module IntervalTree = struct
           else None
     in
     traverse' tree
-end
 
-module StreamParser = struct
-  type t = {s: string; n: int; mutable pos: int}
-
-  let create s = {s; n= String.length s; pos= 0}
-
-  let parse_int ?(skip = 1) p =
-    let rec parse_int' acc =
-      if p.pos = p.n then acc
-      else
-        let c = String.get p.s p.pos in
-        match c with
-        | '0' .. '9' as c ->
-            p.pos <- p.pos + 1 ;
-            parse_int' ((acc * 10) + Char.to_int c - 48)
-        | _ -> acc
+  (* split input interval into sub-intervals paired with matching leaf values
+     in the interval tree (or default if there's no overlap); the output
+     intervals are guaranteed to add up exactly to the input interval *)
+  let map_interval ?(default = 0) tree interval =
+    let rec map_interval' {interval; node} acc i =
+      match node with
+      | Leaf v ->
+          List.iter (Interval.split_by_interval i interval)
+            ~f:(fun (i, overlaps) ->
+              let v = if overlaps then v else default in
+              acc := (i, v) :: !acc )
+      | Split {left; right} ->
+          let split = right.interval.low in
+          if i.low < split then
+            map_interval' left acc {i with high= min i.high split} ;
+          if i.high > split then
+            map_interval' right acc {i with low= max i.low split}
     in
-    let ans = parse_int' 0 in
-    p.pos <- p.pos + skip ;
-    ans
-
-  let parse_int2 ?skip p =
-    let a = parse_int ?skip p in
-    let b = parse_int ?skip p in
-    (a, b)
-
-  let parse_int3 ?skip p =
-    let a = parse_int ?skip p in
-    let b = parse_int ?skip p in
-    let c = parse_int ?skip p in
-    (a, b, c)
-
-  let pos p = p.pos
-
-  let skip p n = p.pos <- p.pos + n
-
-  let is_eof p = p.pos >= p.n
-
-  let not_eof p = p.pos < p.n
-
-  let is_whitespace_u p =
-    let c = String.unsafe_get p.s p.pos in
-    Char.(c = ' ' || c = '\n')
-
-  let not_whitespace p = not_eof p && not (is_whitespace_u p)
-
-  let hd_u p = String.unsafe_get p.s p.pos
-
-  let hd_equals_u p c = Char.(String.unsafe_get p.s p.pos = c)
-
-  let skip_to p c =
-    while (not (is_eof p)) && not (hd_equals_u p c) do
-      skip p 1
-    done
+    let acc = ref [] in
+    map_interval' tree acc interval ;
+    !acc
 end
 
 let parse_input s =
@@ -121,11 +123,14 @@ let parse_input s =
       block := (i, v) :: !block
     done ;
     let tree = IntervalTree.of_assoc !block in
-    (* printf "%s\n" (IntervalTree.show_tree Format.pp_print_int tree) ; *)
     trees := tree :: !trees
   done ;
-  (* seeds will be reversed but it's ok; blocks order matters though *)
-  (!seeds, List.rev !trees)
+  (List.rev !seeds, List.rev !trees)
+
+let rec seeds_to_intervals = function
+  | low :: len :: tl ->
+      Interval.create low (low + len) :: seeds_to_intervals tl
+  | _ -> []
 
 module M = struct
   type t = int list * int IntervalTree.tree list
@@ -140,7 +145,31 @@ module M = struct
             + (loc |> IntervalTree.traverse tree |> Option.value ~default:0) ) )
     |> List.min_elt ~compare |> Option.value ~default:0 |> Int.to_string
 
-  let part2 (_seeds, _trees) = ""
+  let part2 (seeds, trees) =
+    (* 78775051 *)
+    let sort_intervals = List.sort ~compare:Interval.compare_low in
+    let compare_iv (a, _) (b, _) = Interval.compare_low a b in
+    let sort_ivs = List.sort ~compare:compare_iv in
+    let apply_ivs = List.map ~f:(fun (i, v) -> Interval.shift i v) in
+    let rec merge_sorted = function
+      | a :: b :: tl -> (
+        match Interval.merge a b with
+        | Some i -> merge_sorted (i :: tl)
+        | None -> a :: merge_sorted (b :: tl) )
+      | x -> x
+    in
+    let pass_through_tree intervals tree =
+      intervals
+      |> List.map ~f:(IntervalTree.map_interval tree)
+      |> List.concat |> sort_ivs |> apply_ivs |> sort_intervals
+      |> merge_sorted
+    in
+    let intervals = seeds_to_intervals seeds in
+    trees
+    |> List.fold ~init:intervals ~f:pass_through_tree
+    |> List.min_elt ~compare:Interval.compare_low
+    |> Option.value_map ~default:(-1) ~f:(fun i -> i.Interval.low)
+    |> Int.to_string
 end
 
 include M
@@ -173,4 +202,4 @@ let%expect_test _ =
    humidity-to-location map:\n\
    60 56 37\n\
    56 93 4" |> run_test ;
-  [%expect {| 35 |}]
+  [%expect {| 35 46 |}]

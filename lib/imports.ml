@@ -1,4 +1,4 @@
-open! Base
+open Base
 
 let print_endline_int i = Stdlib.print_endline (Int.to_string i)
 
@@ -38,3 +38,58 @@ let sum_ints l = List.fold l ~init:0 ~f:( + )
 
 let str_find_char_exn s c =
   s |> String.findi ~f:(fun _ x -> Char.(x = c)) |> Option.value_exn |> fst
+
+module StreamParser = struct
+  type t = {s: string; n: int; mutable pos: int}
+
+  let create s = {s; n= String.length s; pos= 0}
+
+  let parse_int ?(skip = 1) p =
+    let rec parse_int' acc =
+      if p.pos = p.n then acc
+      else
+        let c = String.get p.s p.pos in
+        match c with
+        | '0' .. '9' as c ->
+            p.pos <- p.pos + 1 ;
+            parse_int' ((acc * 10) + Char.to_int c - 48)
+        | _ -> acc
+    in
+    let ans = parse_int' 0 in
+    p.pos <- p.pos + skip ;
+    ans
+
+  let parse_int2 ?skip p =
+    let a = parse_int ?skip p in
+    let b = parse_int ?skip p in
+    (a, b)
+
+  let parse_int3 ?skip p =
+    let a = parse_int ?skip p in
+    let b = parse_int ?skip p in
+    let c = parse_int ?skip p in
+    (a, b, c)
+
+  let pos p = p.pos
+
+  let skip p n = p.pos <- p.pos + n
+
+  let is_eof p = p.pos >= p.n
+
+  let not_eof p = p.pos < p.n
+
+  let is_whitespace_u p =
+    let c = String.unsafe_get p.s p.pos in
+    Char.(c = ' ' || c = '\n')
+
+  let not_whitespace p = not_eof p && not (is_whitespace_u p)
+
+  let hd_u p = String.unsafe_get p.s p.pos
+
+  let hd_equals_u p c = Char.(String.unsafe_get p.s p.pos = c)
+
+  let skip_to p c =
+    while (not (is_eof p)) && not (hd_equals_u p c) do
+      skip p 1
+    done
+end
