@@ -22,5 +22,7 @@
     cohttp-lwt-unix
     lwt_ssl
     ppx_expect
+    ppx_sexp_conv
+    ppx_jane
   )
 )
