@@ -1,6 +1,4 @@
-open! Stdlib.Printf
-open! Base
-open! Imports
+open Core
 
 let numbers =
   [ "zero"
@@ -14,18 +12,51 @@ let numbers =
   ; "eight"
   ; "nine" ]
 
+type trie = Leaf of string * int | Node of trie option array
+
+let rec build_trie = function
+  | [] -> failwith "empty list"
+  | [(i, x)] -> Leaf (x, i)
+  | items ->
+      let first_chars =
+        List.map ~f:(fun (_, x) -> x.[0]) items
+        |> List.dedup_and_sort ~compare:Char.compare
+      in
+      let arr = Array.create ~len:256 None in
+      List.iter first_chars ~f:(fun c ->
+          let items =
+            List.filter_map items ~f:(fun (i, x) ->
+                Option.some_if
+                  (Char.equal x.[0] c)
+                  (i, String.drop_prefix x 1) )
+          in
+          arr.(Char.to_int c) <- Some (build_trie items) ) ;
+      Node arr
+
+let numbers_trie = build_trie (List.mapi numbers ~f:(fun i x -> (i, x)))
+
+let rec match_trie ?(trie = numbers_trie) s pos =
+  if String.length s <= pos then None
+  else
+    match trie with
+    | Leaf (x, j) ->
+        if String.is_substring_at s ~pos ~substring:x then Some j else None
+    | Node arr ->
+        String.get s pos |> Char.to_int |> Array.get arr
+        |> Option.bind ~f:(fun trie -> match_trie s (pos + 1) ~trie)
+
 module M = struct
   type t = string
 
-  let parse inputs = inputs
+  let parse s = s
 
-  let part1 inputs =
+  let part1 s =
     (* 54239 *)
     let nan = Char.min_value in
     let digit c = Char.to_int c - Char.to_int '0' in
     let num2 x y = (10 * digit x) + digit y in
     let total, first, last = (ref 0, ref nan, ref nan) in
-    String.iter inputs ~f:(function
+    String.iter s ~f:(function
       | '0' .. '9' as c ->
           last := c ;
           if Char.(!first = nan) then first := c
@@ -35,43 +66,28 @@ module M = struct
       | _ -> () ) ;
     !total + num2 !first !last |> Int.to_string
 
-  let part2 lines =
+  let part2 s =
     (* 55343 *)
-    let lines = String.split_lines lines |> List.map ~f:String.to_list in
-    let numbers = List.map ~f:String.to_list numbers in
-    let numbers_rev = List.map ~f:List.rev numbers in
-    let rec zip_shortest xs ys =
-      match (xs, ys) with
-      | [], _ | _, [] -> []
-      | x :: xs, y :: ys -> (x, y) :: zip_shortest xs ys
-    in
-    let prefix_matches xs ys =
-      List.for_all (zip_shortest xs ys) ~f:(fun (x, y) -> Char.equal x y)
-    in
-    let prefix_findi xs yss =
-      List.findi yss ~f:(fun _ ys -> prefix_matches xs ys)
-      |> Option.map ~f:fst
-    in
-    let parse_first_digit chars =
-      chars |> List.hd |> Option.find_map ~f:parse_digit
-    in
-    let rec find_first_digit line numbers =
-      let first =
-        match parse_first_digit line with
-        | None -> prefix_findi line numbers
-        | x -> x
-      in
-      match (first, line) with
-      | Some i, _ -> i
-      | None, _ :: tail -> find_first_digit tail numbers
-      | None, [] -> failwith "no match"
-    in
-    let first_digit line = find_first_digit line numbers in
-    let last_digit line = find_first_digit (List.rev line) numbers_rev in
-    let string_code line = (10 * first_digit line) + last_digit line in
-    lines |> List.map ~f:string_code
-    |> List.fold ~init:0 ~f:( + )
-    |> Int.to_string
+    let nan = -1 in
+    let digit c = Char.to_int c - Char.to_int '0' in
+    let num2 x y = (10 * x) + y in
+    let total, first, last = (ref 0, ref nan, ref nan) in
+    for i = 0 to String.length s - 1 do
+      match String.unsafe_get s i with
+      | '0' .. '9' as c ->
+          last := digit c ;
+          if !first = nan then first := !last
+      | '\n' ->
+          total := !total + num2 !first !last ;
+          first := nan
+      | _ -> (
+        match match_trie s i with
+        | Some j ->
+            last := j ;
+            if !first = nan then first := j
+        | None -> () )
+    done ;
+    !total + num2 !first !last |> Int.to_string
 end
 
 include M
@@ -88,5 +104,5 @@ let%expect_test _ =
    xtwone3four\n\
    4nineeightseven2\n\
    zoneight234\n\
-   7pqrstsixteen\n" |> run_test ~part:2 ;
+   7pqrstsixteen" |> run_test ~part:2 ;
   [%expect {| 281 |}]
