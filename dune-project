@@ -24,5 +24,6 @@
     ppx_expect
     ppx_sexp_conv
     ppx_jane
+    ppx_deriving
   )
 )
