@@ -1,15 +1,15 @@
-open Base
+open Core
 open Lexing
 open Imports
 
 let err_msg lexbuf msg =
   let pos = lexbuf.lex_curr_p in
   let pos_str =
-    Fmt.str "%d:%d" pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
+    sprintf "%d:%d" pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
   in
   match msg with
-  | None -> Fmt.str "%s: syntax error" pos_str
-  | Some msg -> Fmt.str "%s: %s" pos_str msg
+  | None -> sprintf "%s: syntax error" pos_str
+  | Some msg -> sprintf "%s: %s" pos_str msg
 
 exception Error of string
 
