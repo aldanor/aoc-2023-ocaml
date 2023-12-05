@@ -39,23 +39,24 @@ let read_inputs day =
     download_input day input_file ;
   In_channel.read_all input_file
 
-let run_single ~day ~bench ~part1 ~part2 =
+let run_single ~day ~bench ~part1 ~part2 ~parse =
   let _ = (bench, part1, part2) in
   let inputs = read_inputs day in
   let (module Day : Day.S) = get_day_module day in
   let only1, only2 =
     match (part1, part2) with true, true -> (false, false) | parts -> parts
   in
-  if bench then Day.bench ~only1 ~only2 inputs else Day.run inputs
+  if bench then Day.bench ~only1 ~only2 ~parse inputs
+  else Day.run inputs ~only1 ~only2
 
-let run_command ~day ~bench ~part1 ~part2 =
+let run_command ~day ~bench ~part1 ~part2 ~parse =
   let days =
     day |> Option.value_map ~default:(List.range 1 26) ~f:List.return
   in
   let part1, part2 =
     match (part1, part2) with false, false -> (true, true) | parts -> parts
   in
-  List.iter days ~f:(fun day -> run_single ~day ~bench ~part1 ~part2)
+  List.iter days ~f:(fun day -> run_single ~day ~bench ~part1 ~part2 ~parse)
 
 let () =
   let param_day =
@@ -69,7 +70,8 @@ let () =
       (let%map_open.Command day = anon (maybe ("day" %: param_day))
        and bench = flag "-b" no_arg ~doc:" Run benchmarks"
        and part1 = flag "-1" no_arg ~doc:" Part 1 only"
-       and part2 = flag "-2" no_arg ~doc:" Part 2 only" in
-       fun () -> run_command ~day ~bench ~part1 ~part2 )
+       and part2 = flag "-2" no_arg ~doc:" Part 2 only"
+       and parse = flag "-p" no_arg ~doc:" Bench parsing" in
+       fun () -> run_command ~day ~bench ~part1 ~part2 ~parse )
   in
   Command_unix.run command
