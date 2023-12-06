@@ -92,4 +92,21 @@ module StreamParser = struct
     while (not (is_eof p)) && not (hd_equals_u p c) do
       skip p 1
     done
+
+  let skip_whitespace p =
+    while (not (is_eof p)) && is_whitespace_u p do
+      skip p 1
+    done
+
+  let skip_while p ~f =
+    while (not (is_eof p)) && hd_u p |> f do
+      skip p 1
+    done
+
+  let skip_until p ~f =
+    while (not (is_eof p)) && not (hd_u p |> f) do
+      skip p 1
+    done
+
+  let is_hd p ~f = (not (is_eof p)) && hd_u p |> f
 end
