@@ -28,11 +28,17 @@ end
 module Make (Impl : Impl) : S = struct
   let run ?(only1 = false) ?(only2 = false) inputs =
     let parsed = Impl.parse inputs in
-    if not only2 then parsed |> Impl.part1 |> printf "%s" |> ignore ;
+    let n = ref 0 in
+    if not only2 then (
+      let out = parsed |> Impl.part1 in
+      n := !n + (out |> String.strip |> String.length) ;
+      out |> printf "%s" |> ignore ) ;
     if not only1 then (
-      if not only2 then printf " " |> ignore ;
-      parsed |> Impl.part2 |> printf "%s" |> ignore ) ;
-    if (not only1) || not only2 then printf "\n" |> ignore
+      if (not only2) && !n <> 0 then printf " " |> ignore ;
+      let out = parsed |> Impl.part2 in
+      n := !n + (out |> String.strip |> String.length) ;
+      out |> printf "%s" |> ignore ) ;
+    if !n <> 0 then printf "\n" |> ignore
 
   let run_test ?(part = 0) inputs =
     let p = Impl.parse inputs in
