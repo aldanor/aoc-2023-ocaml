@@ -70,6 +70,18 @@ module StreamParser = struct
     let c = parse_int ?skip p in
     (a, b, c)
 
+  let parse_digit_u p =
+    let d = String.unsafe_get p.s p.pos |> parse_digit_unchecked in
+    p.pos <- p.pos + 1 ;
+    d
+
+  let parse_char_u p =
+    let d = String.unsafe_get p.s p.pos in
+    p.pos <- p.pos + 1 ;
+    d
+
+  let get_u ?(pos = 0) p = String.unsafe_get p.s (p.pos + pos)
+
   let pos p = p.pos
 
   let skip p n = p.pos <- p.pos + n
