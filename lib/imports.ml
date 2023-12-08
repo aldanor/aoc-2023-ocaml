@@ -94,6 +94,10 @@ module StreamParser = struct
     let c = String.unsafe_get p.s p.pos in
     Char.(c = ' ' || c = '\n')
 
+  let is_newline_u p =
+    let c = String.unsafe_get p.s p.pos in
+    Char.(c = '\n')
+
   let not_whitespace p = not_eof p && not (is_whitespace_u p)
 
   let hd_u p = String.unsafe_get p.s p.pos
@@ -121,4 +125,11 @@ module StreamParser = struct
     done
 
   let is_hd p ~f = (not (is_eof p)) && hd_u p |> f
+
+  let sub_u ?(pos = 0) p ~len = String.unsafe_sub p.s ~pos:(pos + p.pos) ~len
+
+  let parse_sub_u p ~len =
+    let s = String.unsafe_sub p.s ~pos:p.pos ~len in
+    p.pos <- p.pos + len ;
+    s
 end
