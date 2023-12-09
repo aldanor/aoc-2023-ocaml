@@ -78,6 +78,36 @@ module State = struct
     (tortoise, !lambda)
 end
 
+let rec list_product = function
+  | [] -> [[]]
+  | x :: xs ->
+      let rest = list_product xs in
+      List.concat
+        (List.map ~f:(fun i -> List.map ~f:(fun rs -> i :: rs) rest) x)
+
+let extended_euclidean a b =
+  (* returns (x, y, g) such that ax + by = g = gcd(a, b) *)
+  let rec loop a b x y u v =
+    if b = 0 then (x, y, a)
+    else
+      let q = a / b in
+      loop b (a mod b) u v (x - (q * u)) (y - (q * v))
+  in
+  loop a b 1 0 0 1
+
+let reduce_congruences (a, m) (b, n) =
+  (* reduce 'x = a (mod m)' and 'x = b (mod n)') *)
+  let u, v, g = extended_euclidean m n in
+  match (a - b) mod g with
+  | 0 ->
+      let l = (a - b) / g in
+      assert ((m * u * l) + (n * v * l) = a - b) ;
+      assert (a - (m * u * l) = b + (n * v * l)) ;
+      let y = m * n / g in
+      let x = (a - (y * u * l)) % y in
+      Some (x, y)
+  | _ -> None
+
 module M = struct
   type t = {dirs: int array; arr: int array; a: int list; z: int list}
 
@@ -120,23 +150,44 @@ module M = struct
     done ;
     state.count |> Int.to_string
 
-  let part2 {dirs; arr; a; _} =
+  let part2 {dirs; arr; a; z} =
     (* 11188774513823 *)
-    let cycles =
-      List.map a ~f:(fun start ->
-          let state, len = State.brent dirs arr start in
-          let z_min, z_nodes = (pack_char 'A' 'A' 'Z', ref []) in
-          for _ = 1 to len do
-            if state.pos >= z_min then z_nodes := state.count :: !z_nodes ;
-            State.next state
-          done ;
-          match !z_nodes with
-          | [z] when z % len = 0 -> len
-          | _ -> failwith "unexpected" )
+    let n = List.length a in
+    assert (n = List.length z) ;
+    let z_nodes = Array.init n ~f:(fun _ -> []) in
+    for i = 0 to n - 1 do
+      let start = List.nth_exn a i in
+      let state, cycle_length = State.brent dirs arr start in
+      let cycle_start = state.count in
+      let z_min = pack_char 'A' 'A' 'Z' in
+      for _ = 1 to cycle_length do
+        if state.pos >= z_min then
+          z_nodes.(i) <-
+            (cycle_start, cycle_length, state.count) :: z_nodes.(i) ;
+        State.next state
+      done
+    done ;
+    let process_z_nodes_combination z_nodes =
+      let max_z_pos =
+        z_nodes |> List.map ~f:trd3 |> List.max_elt ~compare
+        |> Option.value_exn
+      in
+      let reduce_congruences_opt am bn =
+        match (am, bn) with
+        | Some am, Some bn -> reduce_congruences am bn
+        | _ -> None
+      in
+      let rec congruence_to_value (x, y) =
+        if x >= max_z_pos then x else congruence_to_value (x + y, y)
+      in
+      z_nodes
+      |> List.map ~f:(fun (_, len, pos) -> Some (pos mod len, len))
+      |> List.reduce_exn ~f:reduce_congruences_opt
+      |> Option.map ~f:congruence_to_value
     in
-    let rec gcd a = function 0 -> a | b -> gcd b (a mod b) in
-    let lcm a b = a * b / gcd a b in
-    List.fold ~init:1 ~f:lcm cycles |> Int.to_string
+    list_product (Array.to_list z_nodes)
+    |> List.filter_map ~f:process_z_nodes_combination
+    |> List.min_elt ~compare |> Option.value_exn |> Int.to_string
 end
 
 include M
@@ -156,4 +207,16 @@ let%expect_test _ =
 let%expect_test _ =
   "LLR\n\nAAA = (BBB, BBB)\nBBB = (AAA, ZZZ)\nZZZ = (ZZZ, ZZZ)"
   |> run_test ~part:1 ;
+  [%expect {| 6 |}]
+
+let%expect_test _ =
+  "LR\n\n\
+   PPA = (PPB, XXX)\n\
+   PPB = (XXX, PPZ)\n\
+   PPZ = (PPB, XXX)\n\
+   QQA = (QQB, XXX)\n\
+   QQB = (QQC, QQC)\n\
+   QQC = (QQZ, QQZ)\n\
+   QQZ = (QQB, QQB)\n\
+   XXX = (XXX, XXX)" |> run_test ~part:2 ;
   [%expect {| 6 |}]
