@@ -39,6 +39,11 @@ let sum_ints l = List.fold l ~init:0 ~f:( + )
 let str_find_char_exn s c =
   s |> String.findi ~f:(fun _ x -> Char.(x = c)) |> Option.value_exn |> fst
 
+let il2s (x : int list) =
+  "(" ^ (List.map x ~f:Int.to_string |> String.concat ~sep:" ") ^ ")"
+
+let ia2s (x : int array) = x |> Array.to_list |> il2s
+
 module StreamParser = struct
   type t = {s: string; n: int; mutable pos: int}
 
@@ -58,6 +63,13 @@ module StreamParser = struct
     let ans = parse_int' 0 in
     p.pos <- p.pos + skip ;
     ans
+
+  let parse_signed_int ?(skip = 1) p =
+    match String.get p.s p.pos with
+    | '-' ->
+        p.pos <- p.pos + 1 ;
+        -parse_int ~skip p
+    | _ -> parse_int ~skip p
 
   let parse_int2 ?skip p =
     let a = parse_int ?skip p in
@@ -99,6 +111,8 @@ module StreamParser = struct
     Char.(c = '\n')
 
   let not_whitespace p = not_eof p && not (is_whitespace_u p)
+
+  let not_newline p = not_eof p && not (is_newline_u p)
 
   let hd_u p = String.unsafe_get p.s p.pos
 
