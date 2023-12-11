@@ -110,6 +110,8 @@ module Map = struct
     if not (equal_dir s.dir s.prev_dir) then (
       let l, r = left_right m s.pos s.prev_dir in
       f l true ; f r false )
+
+  let get m pos = Bytes.unsafe_get m.map pos
 end
 
 module M = struct
@@ -118,84 +120,97 @@ module M = struct
   let parse s = s
 
   let part1 map =
+    (* 6725 *)
     let m, n = (Map.parse map, ref 0) in
     Map.traverse_loop m ~f:(fun _ -> incr n) ;
     !n / 2 |> Int.to_string
 
   let part2 map =
     (* 383 *)
-    assert (Int.(dir_to_enum Up = 0)) ;
-    assert (Int.(dir_to_enum Right = 1)) ;
-    assert (Int.(dir_to_enum Down = 2)) ;
-    assert (Int.(dir_to_enum Left = 3)) ;
     let m = Map.parse map in
-    (* traverse the loop, collect loop nodes, mark them with 1 *)
     let b = Array.create_local ~len:(Map.length m) 0 in
-    let loop_nodes = ref [] in
     Map.traverse_loop m ~f:(fun s ->
-        Array.unsafe_set b s.pos 1 ;
-        loop_nodes := s :: !loop_nodes ) ;
-    let n, w = (Map.length m, Map.width m) in
-    (* fill out from upperpost right corner, mark as -1 *)
-    let rec traverse_flood' pos area is_outside =
-      match pos with
-      | [] -> (area, is_outside)
-      | i :: tl when i < 0 || i >= n -> traverse_flood' tl area true
-      | i :: tl -> (
-        match Array.unsafe_get b i with
-        | 0 ->
-            Array.unsafe_set b i (-1) ;
-            traverse_flood'
-              ((i - w) :: (i - 1) :: (i + 1) :: (i + w) :: tl)
-              (area + 1) is_outside
-        (* '2' means "we've marked it as outward", see below *)
-        | x -> traverse_flood' tl area (is_outside || x = 2) )
-    in
-    let traverse_flood pos =
-      let area, is_outside = traverse_flood' [pos] 0 false in
-      if not is_outside then area else 0
-    in
-    let _ = traverse_flood w in
-    (* now we can determine whether left or right is outward *)
-    let offsets_l, offsets_r = ([|-1; -w; 1; w|], [|1; w; -1; -w|]) in
-    let is_out pos = pos < 0 || pos >= n || Array.unsafe_get b pos = -1 in
-    let is_out_l pos d = pos + Array.unsafe_get offsets_l d |> is_out in
-    let is_out_r pos d = pos + Array.unsafe_get offsets_r d |> is_out in
-    let rec is_out_left' = function
-      | [] -> failwith "unable to determine outward side"
-      | s :: tl ->
-          let p, d = (dir_to_enum s.prev_dir, dir_to_enum s.dir) in
-          if is_out_l s.pos p || is_out_l s.pos d then true
-          else if is_out_r s.pos p || is_out_r s.pos d then false
-          else is_out_left' tl
-    in
-    let is_out_left = is_out_left' !loop_nodes in
-    (* now let's go and fill empty slots on outward side with 2 *)
-    let mark pos =
-      if pos >= 0 && pos < n && Array.unsafe_get b pos = 0 then
-        Array.unsafe_set b pos 2
-    in
-    let offsets = if is_out_left then offsets_l else offsets_r in
-    let rec mark_outward_side' = function
-      | [] -> ()
-      | s :: tl ->
-          mark (s.pos + Array.unsafe_get offsets (dir_to_enum s.prev_dir)) ;
-          mark (s.pos + Array.unsafe_get offsets (dir_to_enum s.dir)) ;
-          mark_outward_side' tl
-    in
-    mark_outward_side' !loop_nodes ;
-    (* now we're ready to do the flood fill *)
-    let rec compute_area min_pos area =
-      if min_pos >= n then area
-      else
-        let area =
-          if Array.get b min_pos = 0 then area + traverse_flood min_pos
-          else area
-        in
-        compute_area (min_pos + 1) area
-    in
-    compute_area 0 0 |> Int.to_string
+        let x = match Map.get m s.pos with '|' | 'L' | 'J' -> 1 | _ -> 2 in
+        Array.unsafe_set b s.pos x ) ;
+    Array.fold b ~init:(0, false) ~f:(fun (area, inside) x ->
+        ( area + Bool.to_int (inside && x = 0)
+        , if x = 1 then not inside else inside ) )
+    |> fst |> Int.to_string
 end
+
+let part2_initial_version map =
+  (* 383 *)
+  assert (Int.(dir_to_enum Up = 0)) ;
+  assert (Int.(dir_to_enum Right = 1)) ;
+  assert (Int.(dir_to_enum Down = 2)) ;
+  assert (Int.(dir_to_enum Left = 3)) ;
+  let m = Map.parse map in
+  (* traverse the loop, collect loop nodes, mark them with 1 *)
+  let b = Array.create_local ~len:(Map.length m) 0 in
+  let loop_nodes = ref [] in
+  Map.traverse_loop m ~f:(fun s ->
+      Array.unsafe_set b s.pos 1 ;
+      loop_nodes := s :: !loop_nodes ) ;
+  let n, w = (Map.length m, Map.width m) in
+  (* fill out from upperpost right corner, mark as -1 *)
+  let rec traverse_flood' pos area is_outside =
+    match pos with
+    | [] -> (area, is_outside)
+    | i :: tl when i < 0 || i >= n -> traverse_flood' tl area true
+    | i :: tl -> (
+      match Array.unsafe_get b i with
+      | 0 ->
+          Array.unsafe_set b i (-1) ;
+          traverse_flood'
+            ((i - w) :: (i - 1) :: (i + 1) :: (i + w) :: tl)
+            (area + 1) is_outside
+      (* '2' means "we've marked it as outward", see below *)
+      | x -> traverse_flood' tl area (is_outside || x = 2) )
+  in
+  let traverse_flood pos =
+    let area, is_outside = traverse_flood' [pos] 0 false in
+    if not is_outside then area else 0
+  in
+  let _ = traverse_flood w in
+  (* now we can determine whether left or right is outward *)
+  let offsets_l, offsets_r = ([|-1; -w; 1; w|], [|1; w; -1; -w|]) in
+  let is_out pos = pos < 0 || pos >= n || Array.unsafe_get b pos = -1 in
+  let is_out_l pos d = pos + Array.unsafe_get offsets_l d |> is_out in
+  let is_out_r pos d = pos + Array.unsafe_get offsets_r d |> is_out in
+  let rec is_out_left' = function
+    | [] -> failwith "unable to determine outward side"
+    | s :: tl ->
+        let p, d = (dir_to_enum s.prev_dir, dir_to_enum s.dir) in
+        if is_out_l s.pos p || is_out_l s.pos d then true
+        else if is_out_r s.pos p || is_out_r s.pos d then false
+        else is_out_left' tl
+  in
+  let is_out_left = is_out_left' !loop_nodes in
+  (* now let's go and fill empty slots on outward side with 2 *)
+  let mark pos =
+    if pos >= 0 && pos < n && Array.unsafe_get b pos = 0 then
+      Array.unsafe_set b pos 2
+  in
+  let offsets = if is_out_left then offsets_l else offsets_r in
+  let rec mark_outward_side' = function
+    | [] -> ()
+    | s :: tl ->
+        mark (s.pos + Array.unsafe_get offsets (dir_to_enum s.prev_dir)) ;
+        mark (s.pos + Array.unsafe_get offsets (dir_to_enum s.dir)) ;
+        mark_outward_side' tl
+  in
+  mark_outward_side' !loop_nodes ;
+  (* now we're ready to do the flood fill *)
+  let rec compute_area min_pos area =
+    if min_pos >= n then area
+    else
+      let area =
+        if Array.get b min_pos = 0 then area + traverse_flood min_pos
+        else area
+      in
+      compute_area (min_pos + 1) area
+  in
+  compute_area 0 0 |> Int.to_string
 
 include M
 include Day.Make (M)
