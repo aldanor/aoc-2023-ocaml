@@ -76,7 +76,20 @@ module M = struct
     let total = ngx + ngy + tpx + tpy in
     total |> Int.to_string
 
-  let part2 _ = ""
+  let part2 s =
+    (* 569052586852 *)
+    let xs, ys, w, h = _parse s in
+    let _xs, _ys = (xs, ys) in
+    let _w, _h = (w, h) in
+    let nx, ny = (List.length xs, List.length ys) in
+    let xc = coords_to_counts xs w in
+    let yc = coords_to_counts ys h in
+    let ngx, ngy = (num_gap_crossings xc nx, num_gap_crossings yc ny) in
+    let tpx, tpy =
+      (total_pairwise_distances xc nx, total_pairwise_distances yc ny)
+    in
+    let total = (999_999 * ngx) + (999_999 * ngy) + tpx + tpy in
+    total |> Int.to_string
 end
 
 include M
@@ -93,4 +106,4 @@ let%expect_test _ =
    ..........\n\
    .......#..\n\
    #...#....." |> run_test ;
-  [%expect {| 374 |}]
+  [%expect {| 374  1030 |}]
