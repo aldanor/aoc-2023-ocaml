@@ -1,95 +1,62 @@
 open Core
-open! Imports
 
-let _parse s =
-  let n = String.length s in
-  let w = String.index_exn s '\n' in
-  let h = ((n + 1) / w) - 1 in
-  let xs, ys, i = (ref [], ref [], ref 0) in
-  for y = 0 to h - 1 do
-    for x = 0 to w - 1 do
-      let c = String.unsafe_get s !i in
-      if Char.(c = '#') then (
-        xs := x :: !xs ;
-        ys := y :: !ys ) ;
-      incr i
-    done ;
-    incr i
-  done ;
-  (!xs, !ys, w, h)
+type points = {counts: int array; total: int; factor: int}
 
-let find_gaps xs max =
-  let rec loop xs is acc =
-    match (xs, is) with
-    | _, [] -> acc
-    | [], i :: is -> loop [] is (i :: acc)
-    | x :: xs, i :: is ->
-        if x = i then loop xs is acc
-        else if x < i then loop xs (i :: is) acc
-        else loop (x :: xs) is (i :: acc)
-  in
-  loop xs (List.range 0 max) [] |> List.rev
-
-let coords_to_counts xs max =
-  let counts = Array.create ~len:max 0 in
-  List.iter xs ~f:(fun x -> counts.(x) <- counts.(x) + 1) ;
-  counts
-
-let num_gap_crossings xc n =
-  let n_left, acc = (ref 0, ref 0) in
-  for i = 0 to Array.length xc - 1 do
-    let c = xc.(i) in
-    if c = 0 then acc := !acc + (!n_left * (n - !n_left))
-    else n_left := !n_left + c
-  done ;
-  !acc
-
-let total_pairwise_distances xc n =
+let count_distances ?(f = None) {counts; total; factor} =
   let n_left, acc, x_prev = (ref 0, ref 0, ref (-1)) in
-  for i = 0 to Array.length xc - 1 do
-    let c = xc.(i) in
+  let f = Option.value f ~default:factor - 1 in
+  for i = 0 to Array.length counts - 1 do
+    let c = Array.unsafe_get counts i in
     if c <> 0 then (
       if !x_prev <> -1 then
-        acc := !acc + (!n_left * (n - !n_left) * (i - !x_prev)) ;
+        acc := !acc + (!n_left * (total - !n_left) * (i - !x_prev)) ;
       x_prev := i ;
       n_left := !n_left + c )
+    else acc := !acc + (f * !n_left * (total - !n_left))
   done ;
   !acc
 
+let count_pair_distances ?f xs ys =
+  count_distances ~f xs + count_distances ~f ys
+
 module M = struct
-  type t = string
+  type t = points * points
 
-  let parse s = s
+  let parse s =
+    let factor, s =
+      if Char.is_digit (String.get s 0) then
+        let i = String.index_exn s ' ' in
+        let f = String.sub s ~pos:0 ~len:i |> Int.of_string in
+        (f, String.sub s ~pos:(i + 1) ~len:(String.length s - i - 1))
+      else (1_000_000, s)
+    in
+    let n = String.length s in
+    let w = String.index_exn s '\n' in
+    let h = ((n + 1) / w) - 1 in
+    let xc = Array.create ~len:w 0 in
+    let yc = Array.create ~len:h 0 in
+    let i, total = (ref 0, ref 0) in
+    for y = 0 to h - 1 do
+      for x = 0 to w - 1 do
+        let c = String.unsafe_get s !i in
+        if Char.(c = '#') then (
+          xc.(x) <- xc.(x) + 1 ;
+          yc.(y) <- yc.(y) + 1 ;
+          incr total ) ;
+        incr i
+      done ;
+      incr i
+    done ;
+    let total = !total in
+    ({counts= xc; total; factor}, {counts= yc; total; factor})
 
-  let part1 s =
+  let part1 (xc, yc) =
     (* 9724940 *)
-    let xs, ys, w, h = _parse s in
-    let _xs, _ys = (xs, ys) in
-    let _w, _h = (w, h) in
-    let nx, ny = (List.length xs, List.length ys) in
-    let xc = coords_to_counts xs w in
-    let yc = coords_to_counts ys h in
-    let ngx, ngy = (num_gap_crossings xc nx, num_gap_crossings yc ny) in
-    let tpx, tpy =
-      (total_pairwise_distances xc nx, total_pairwise_distances yc ny)
-    in
-    let total = ngx + ngy + tpx + tpy in
-    total |> Int.to_string
+    count_pair_distances ~f:2 xc yc |> Int.to_string
 
-  let part2 s =
+  let part2 (xc, yc) =
     (* 569052586852 *)
-    let xs, ys, w, h = _parse s in
-    let _xs, _ys = (xs, ys) in
-    let _w, _h = (w, h) in
-    let nx, ny = (List.length xs, List.length ys) in
-    let xc = coords_to_counts xs w in
-    let yc = coords_to_counts ys h in
-    let ngx, ngy = (num_gap_crossings xc nx, num_gap_crossings yc ny) in
-    let tpx, tpy =
-      (total_pairwise_distances xc nx, total_pairwise_distances yc ny)
-    in
-    let total = (999_999 * ngx) + (999_999 * ngy) + tpx + tpy in
-    total |> Int.to_string
+    count_pair_distances xc yc |> Int.to_string
 end
 
 include M
@@ -105,5 +72,31 @@ let%expect_test _ =
    .........#\n\
    ..........\n\
    .......#..\n\
-   #...#....." |> run_test ;
-  [%expect {| 374  1030 |}]
+   #...#....." |> run_test ~part:1 ;
+  [%expect {| 374 |}]
+
+let%expect_test _ =
+  "10 ...#......\n\
+   .......#..\n\
+   #.........\n\
+   ..........\n\
+   ......#...\n\
+   .#........\n\
+   .........#\n\
+   ..........\n\
+   .......#..\n\
+   #...#....." |> run_test ~part:2 ;
+  [%expect {| 1030 |}]
+
+let%expect_test _ =
+  "100 ...#......\n\
+   .......#..\n\
+   #.........\n\
+   ..........\n\
+   ......#...\n\
+   .#........\n\
+   .........#\n\
+   ..........\n\
+   .......#..\n\
+   #...#....." |> run_test ~part:2 ;
+  [%expect {| 8410 |}]
