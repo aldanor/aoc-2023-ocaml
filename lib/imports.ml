@@ -42,7 +42,10 @@ let str_find_char_exn s c =
 let il2s (x : int list) =
   "(" ^ (List.map x ~f:Int.to_string |> String.concat ~sep:" ") ^ ")"
 
-let ia2s (x : int array) = x |> Array.to_list |> il2s
+let ia2s (x : int array) =
+  "["
+  ^ (Array.map x ~f:Int.to_string |> Array.to_list |> String.concat ~sep:" ")
+  ^ "]"
 
 module StreamParser = struct
   type t = {s: string; n: int; mutable pos: int}
