@@ -142,6 +142,8 @@ module StreamParser = struct
 
   let sub_u ?(pos = 0) p ~len = String.unsafe_sub p.s ~pos:(pos + p.pos) ~len
 
+  let is_hd_digit_u p = String.unsafe_get p.s p.pos |> Char.is_digit
+
   let parse_sub_u p ~len =
     let s = String.unsafe_sub p.s ~pos:p.pos ~len in
     p.pos <- p.pos + len ;
