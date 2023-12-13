@@ -1,12 +1,17 @@
 open Core
 open Imports
 
+let counts = Array.create ~len:16384 0
+
+let longest = Array.create ~len:256 0
+
 let solve_dp s start len blocks =
   let m, n = (Array.length blocks, len) in
   (* counts[i][j] is the number of ways to place the first `i` elements so
      that there's `j` blocks of '#'s whose lengths match the first `j`
      requested lengths *)
-  let counts = Array.create ~len:((m + 1) * (n + 1)) 0 in
+  Array.fill counts ~pos:0 ~len:((m + 1) * (n + 1)) 0 ;
+  (* let counts = Array.create ~len:((m + 1) * (n + 1)) 0 in *)
   counts.(0) <- 1 ;
   (* next, precompute what's the longest block we can start at each point *)
   let longest = Array.create ~len:(n + 1) 0 in
@@ -17,20 +22,24 @@ let solve_dp s start len blocks =
   (* finally, fill in the counts *)
   let w = m + 1 in
   for i = 0 to n - 1 do
-    let c = s.[start + i] in
+    let c = String.unsafe_get s (start + i) in
+    let longest = Array.unsafe_get longest i in
     for j = 0 to m - 1 do
       let idx = (i * w) + j in
       let iadd i' j' =
         let k = (i' * w) + j' in
-        let v = counts.(k) in
-        counts.(k) <- v + counts.(idx)
+        Array.unsafe_set counts k
+        @@ (Array.unsafe_get counts k + Array.unsafe_get counts idx)
       in
-      let b = blocks.(j) in
+      let b = Array.unsafe_get blocks j in
       (* if we've already made `j` blocks and current char is '.' or '?', we
          can always make an '.' out of it and keep the same count *)
       if Char.(c <> '#') then iadd (i + 1) j ;
       (* next, check is we can place a new block here *)
-      if longest.(i) >= b && i + b <= n && Char.(s.[start + i + b] <> '#')
+      if
+        longest >= b
+        && i + b <= n
+        && Char.(String.unsafe_get s (start + i + b) <> '#')
       then iadd (min (i + b + 1) n) (j + 1)
     done ;
     if Char.(c <> '#') then
