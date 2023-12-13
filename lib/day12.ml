@@ -1,113 +1,88 @@
 open Core
 open Imports
 
-let _DEBUG = false
-
-let pr fmt = if _DEBUG then printf fmt else ifprintf Out_channel.stdout fmt
-
-let solve s start len to_place =
-  let rec f i state to_place ~cps =
-    if i < 0 then
-      (List.is_empty to_place || (state = 0 && List.length to_place = 1))
-      |> Bool.to_int |> cps
-    else
-      let j = i - 1 in
-      match (s.[start + i], state, to_place) with
-      | '#', _, [] -> cps 0
-      | _, _, [] -> f j ~cps 0 []
-      | '?', -1, x :: _ ->
-          f j (x - 1) to_place ~cps:(fun x ->
-              f j (-1) to_place ~cps:(fun y -> cps (x + y)) )
-      | '#', -1, x :: _ -> f j ~cps (x - 1) to_place
-      | '?', 0, _ :: xs | '.', 0, _ :: xs -> f j ~cps (-1) xs
-      | '.', -1, xs -> f j ~cps (-1) xs
-      | '#', 0, _ | '.', _, _ -> cps 0
-      | '?', _, _ | '#', _, _ -> f j ~cps (state - 1) to_place
-      | c, _, _ -> failwith @@ sprintf "unexpected char: '%c'" c
-  in
-  f (len - 1) (-1) to_place ~cps:(fun x -> x)
-
-let solve_dumb s start len p =
-  (* bruteforce solution of part 1 to check for correctness *)
-  let s = String.sub s ~pos:start ~len in
-  let n_questions = String.count s ~f:Char.(fun c -> c = '?') in
-  let n_options = 1 lsl n_questions in
-  let mutate_string option =
-    let b = Bytes.of_string s in
-    let i = ref 0 in
-    for j = 0 to len - 1 do
-      if Char.(Bytes.get b j = '?') then (
-        Bytes.set b j (if option land (1 lsl !i) <> 0 then '#' else '.') ;
-        incr i )
+let solve_dp s start len blocks =
+  let m, n = (Array.length blocks, len) in
+  (* counts[i][j] is the number of ways to place the first `i` elements so
+     that there's `j` blocks of '#'s whose lengths match the first `j`
+     requested lengths *)
+  let counts = Array.create ~len:((m + 1) * (n + 1)) 0 in
+  counts.(0) <- 1 ;
+  (* next, precompute what's the longest block we can start at each point *)
+  let longest = Array.create ~len:(n + 1) 0 in
+  for i = n - 1 downto 0 do
+    longest.(i) <-
+      (if Char.(s.[start + i] = '.') then 0 else longest.(i + 1) + 1)
+  done ;
+  (* finally, fill in the counts *)
+  let w = m + 1 in
+  for i = 0 to n - 1 do
+    let c = s.[start + i] in
+    for j = 0 to m - 1 do
+      let idx = (i * w) + j in
+      let iadd i' j' =
+        let k = (i' * w) + j' in
+        let v = counts.(k) in
+        counts.(k) <- v + counts.(idx)
+      in
+      let b = blocks.(j) in
+      (* if we've already made `j` blocks and current char is '.' or '?', we
+         can always make an '.' out of it and keep the same count *)
+      if Char.(c <> '#') then iadd (i + 1) j ;
+      (* next, check is we can place a new block here *)
+      if longest.(i) >= b && i + b <= n && Char.(s.[start + i + b] <> '#')
+      then iadd (min (i + b + 1) n) (j + 1)
     done ;
-    b
-  in
-  let is_valid b =
-    let c_prev = ref '.' in
-    let block, blocks = (ref 0, ref []) in
-    for j = 0 to len - 1 do
-      let c = Bytes.get b j in
-      ( match (!c_prev, c) with
-      | '#', '#' -> incr block
-      | _, '#' -> block := 1
-      | '#', _ ->
-          blocks := !block :: !blocks ;
-          block := 0
-      | _ -> () ) ;
-      c_prev := c
-    done ;
-    if !block <> 0 then blocks := !block :: !blocks ;
-    List.equal Int.equal !blocks p
-  in
-  List.range 0 n_options
-  |> List.map ~f:(fun option ->
-         option |> mutate_string |> is_valid |> Bool.to_int )
-  |> sum_ints
+    if Char.(c <> '#') then
+      let k = ((i + 1) * w) + m in
+      let v = counts.(k) in
+      counts.(k) <- v + counts.((i * w) + m)
+  done ;
+  counts.((n * w) + m)
 
-let solve_one s p = solve s 0 (String.length s) p
-(* let solve_one s p = solve_dumb s 0 (String.length s) p *)
+let test_solve s p = solve_dp (s ^ " ") 0 (String.length s) p
 
 let%expect_test _ =
-  printf "%d\n" @@ solve_one "???.###" [3; 1; 1] ;
+  printf "%d\n" @@ test_solve "???.###" [|1; 1; 3|] ;
   [%expect {| 1 |}]
 
 let%expect_test _ =
-  printf "%d\n" @@ solve_one ".??..??...?##." [3; 1; 1] ;
+  printf "%d\n" @@ test_solve ".??..??...?##." [|1; 1; 3|] ;
   [%expect {| 4 |}]
 
 let%expect_test _ =
-  printf "%d\n" @@ solve_one "?#?#?#?#?#?#?#?" [6; 1; 3; 1] ;
+  printf "%d\n" @@ test_solve "?#?#?#?#?#?#?#?" [|1; 3; 1; 6|] ;
   [%expect {| 1 |}]
 
 let%expect_test _ =
-  printf "%d\n" @@ solve_one "????.#...#..." [1; 1; 4] ;
+  printf "%d\n" @@ test_solve "????.#...#..." [|4; 1; 1|] ;
   [%expect {| 1 |}]
 
 let%expect_test _ =
-  printf "%d\n" @@ solve_one "????.######..#####." [5; 6; 1] ;
+  printf "%d\n" @@ test_solve "????.######..#####." [|1; 6; 5|] ;
   [%expect {| 4 |}]
 
 let%expect_test _ =
-  printf "%d\n" @@ solve_one "?###????????" [1; 2; 3] ;
+  printf "%d\n" @@ test_solve "?###????????" [|3; 2; 1|] ;
   [%expect {| 10 |}]
 
 let%expect_test "foo" =
-  printf "%d\n" @@ solve_one "?.?#????.?" [1; 3] ;
+  printf "%d\n" @@ test_solve "?.?#????.?" [|3; 1|] ;
   [%expect {| 5 |}]
 
 let parse_nums s i =
   let n = String.length s in
-  let rec f' i num to_place =
-    if i = n then (i, num, num :: to_place)
+  let rec f' i num blocks =
+    if i = n then (i, num, num :: blocks)
     else
       match s.[i] with
       | '0' .. '9' as c ->
-          f' (i + 1) ((num * 10) + parse_digit_unchecked c) to_place
-      | ',' -> f' (i + 1) 0 (num :: to_place)
-      | _ -> (i, num, num :: to_place)
+          f' (i + 1) ((num * 10) + parse_digit_unchecked c) blocks
+      | ',' -> f' (i + 1) 0 (num :: blocks)
+      | _ -> (i, num, num :: blocks)
   in
-  let i, _, to_place = f' i 0 [] in
-  (i, to_place)
+  let i, _, blocks = f' i 0 [] in
+  (i, blocks |> Array.of_list_rev)
 
 module M = struct
   type t = string
@@ -116,24 +91,43 @@ module M = struct
 
   let part1 s =
     (* 7204 *)
-    let n = String.length s in
-    let start = ref 0 in
-    let ans = ref 0 in
-    while !start < n do
+    let start, ans = (ref 0, ref 0) in
+    while !start < String.length s do
       let i = String.index_from_exn s !start ' ' in
-      let len = i - !start in
-      let j, to_place = parse_nums s (i + 1) in
-      ans := !ans + solve s !start len to_place ;
+      let j, blocks = parse_nums s (i + 1) in
+      ans := !ans + solve_dp s !start (i - !start) blocks ;
       start := j + 1
     done ;
     !ans |> Int.to_string
 
   let part2 s =
-    String.rev (s ^ "\n") |> ignore ;
-    ""
+    (* 1672318386674 *)
+    let start, ans = (ref 0, ref 0) in
+    while !start < String.length s do
+      let i = String.index_from_exn s !start ' ' in
+      let j, blocks = parse_nums s (i + 1) in
+      let len = i - !start in
+      let s = String.sub s ~pos:!start ~len in
+      let s =
+        String.concat
+          (List.init 6 ~f:(fun i -> if i = 5 then "" else s))
+          ~sep:"?"
+      in
+      let blocks = Array.concat (List.init 5 ~f:(fun _ -> blocks)) in
+      ans := !ans + solve_dp s 0 ((len * 5) + 4) blocks ;
+      start := j + 1
+    done ;
+    !ans |> Int.to_string
 end
 
 include M
 include Day.Make (M)
 
-(* let%expect_test _ = "" |> run_test ; [%expect {| |}] *)
+let%expect_test _ =
+  "???.### 1,1,3\n\
+   .??..??...?##. 1,1,3\n\
+   ?#?#?#?#?#?#?#? 1,3,1,6\n\
+   ????.#...#... 4,1,1\n\
+   ????.######..#####. 1,6,5\n\
+   ?###???????? 3,2,1" |> run_test ;
+  [%expect {| 21 525152 |}]
