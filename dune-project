@@ -25,5 +25,6 @@
     ppx_sexp_conv
     ppx_jane
     ppx_deriving
+    pp-binary-ints
   )
 )
