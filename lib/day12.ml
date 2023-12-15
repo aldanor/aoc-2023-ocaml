@@ -21,31 +21,38 @@ let solve_dp s start len blocks =
   done ;
   (* finally, fill in the counts *)
   let w = m + 1 in
+  let iadd src dst =
+    let v = Array.unsafe_get counts src in
+    Array.unsafe_set counts dst (v + Array.unsafe_get counts dst)
+  in
   for i = 0 to n - 1 do
-    let c = String.unsafe_get s (start + i) in
-    let longest = Array.unsafe_get longest i in
-    for j = 0 to m - 1 do
-      let idx = (i * w) + j in
-      let iadd i' j' =
-        let k = (i' * w) + j' in
-        Array.unsafe_set counts k
-        @@ (Array.unsafe_get counts k + Array.unsafe_get counts idx)
-      in
-      let b = Array.unsafe_get blocks j in
-      (* if we've already made `j` blocks and current char is '.' or '?', we
-         can always make an '.' out of it and keep the same count *)
-      if Char.(c <> '#') then iadd (i + 1) j ;
-      (* next, check is we can place a new block here *)
-      if
-        longest >= b
-        && i + b <= n
-        && Char.(String.unsafe_get s (start + i + b) <> '#')
-      then iadd (min (i + b + 1) n) (j + 1)
-    done ;
+    let si = start + i in
+    let c = String.unsafe_get s si in
+    let b_ub = min (n - i) (Array.unsafe_get longest i) in
+    let iw = i * w in
+    (* if we've already made `j` blocks and current char is '.' or '?', we
+       can always make an '.' out of it and keep the same count *)
     if Char.(c <> '#') then
-      let k = ((i + 1) * w) + m in
-      let v = counts.(k) in
-      counts.(k) <- v + counts.((i * w) + m)
+      for j = 0 to m - 1 do
+        let idx = iw + j in
+        iadd idx (idx + w)
+      done ;
+    if Char.(c <> '.') then
+      (* next, check is we can place a new block here *)
+      for j = 0 to m - 1 do
+        let idx = (i * w) + j in
+        let iadd' i' j' =
+          let k = (i' * w) + j' in
+          Array.unsafe_set counts k
+          @@ (Array.unsafe_get counts k + Array.unsafe_get counts idx)
+        in
+        let b = Array.unsafe_get blocks j in
+        if b <= b_ub && Char.(String.unsafe_get s (si + b) <> '#') then
+          iadd' (min (i + b + 1) n) (j + 1)
+      done ;
+    if Char.(c <> '#') then
+      let src = iw + m in
+      iadd src (src + w)
   done ;
   counts.((n * w) + m)
 

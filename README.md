@@ -19,7 +19,7 @@ step that's used in both parts.
   day 09    45.1 μs   43.5 μs   88.0 μs
   day 10     149 μs    318 μs
   day 11    0.40 μs   0.40 μs   17.4 μs
-  day 12     635 μs   8.12 MS
+  day 12     635 μs   6.90 MS
   day 13     4.9 μs    4.6 μs   24.0 μs
   day 14    28.8 μs   52.3 MS
   day 15    92.7 μs    134 μs
