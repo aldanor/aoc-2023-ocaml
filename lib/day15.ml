@@ -1,6 +1,9 @@
 open Core
 
-let hash_char h c = (h + Char.to_int c) * 17 mod 256
+let hash_char h c =
+  (* ocaml is apparently not smart enough to optimize all this *)
+  let h = h + Char.to_int c in
+  (h + (h lsl 4)) land 0xff
 
 module M = struct
   type t = string
@@ -18,37 +21,35 @@ module M = struct
     let module P = Imports.StreamParser in
     let boxes = Array.init 256 ~f:(fun _ -> []) in
     let p = P.create s in
-    let equal = String.equal in
-    let rec remove_box box k ~equal =
+    let rec remove_box box k =
       match box with
       | [] -> []
-      | (k', v') :: tl ->
-          if equal k k' then tl else (k', v') :: remove_box tl k ~equal
+      | (k', v') :: tl -> if k = k' then tl else (k', v') :: remove_box tl k
     in
-    let rec add_box box k v ~equal =
+    let rec add_box box k v =
+      (* List.Assoc.add doesn't retain order which we need *)
       match box with
       | [] -> [(k, v)]
       | (k', v') :: tl ->
-          if equal k k' then (k', v) :: tl
-          else (k', v') :: add_box tl k v ~equal
+          if k = k' then (k', v) :: tl else (k', v') :: add_box tl k v
     in
     while P.not_eof p do
-      let h, i, chars = (ref 0, ref 0, ref []) in
+      let h, i = (ref 0, ref 0) in
       while
         match P.parse_char_u p with
         | '-' ->
-            let chars = String.of_char_list !chars |> String.rev in
-            boxes.(!h) <- remove_box boxes.(!h) ~equal chars ;
+            let h = !h in
+            Array.unsafe_set boxes h
+            @@ remove_box (Array.unsafe_get boxes h) !i ;
             false
         | '=' ->
-            let n = P.parse_digit_u p in
-            let chars = String.of_char_list !chars |> String.rev in
-            boxes.(!h) <- add_box boxes.(!h) ~equal chars n ;
+            let h, n = (!h, P.parse_digit_u p) in
+            Array.unsafe_set boxes h
+            @@ add_box (Array.unsafe_get boxes h) !i n ;
             false
         | c ->
             h := hash_char !h c ;
-            i := !i * 256 * Char.to_int c ;
-            chars := c :: !chars ;
+            i := (!i lsl 8) lor Char.to_int c ;
             true
       do
         ()
