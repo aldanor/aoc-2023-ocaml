@@ -23,6 +23,7 @@ depends: [
   "ppx_jane"
   "ppx_deriving"
   "pp-binary-ints"
+  "ocaml-stdint"
   "odoc" {with-doc}
 ]
 build: [

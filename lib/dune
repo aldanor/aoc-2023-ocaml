@@ -3,6 +3,6 @@
 (library
  (name aoc)
  (inline_tests)
- (libraries core unix fmt mtime mtime.clock.os core_bench pp-binary-ints)
+ (libraries core unix fmt mtime mtime.clock.os core_bench pp-binary-ints stdint)
  (preprocess
   (pps ppx_expect ppx_sexp_conv ppx_deriving.show ppx_deriving.eq ppx_deriving.enum)))

@@ -26,5 +26,6 @@
     ppx_jane
     ppx_deriving
     pp-binary-ints
+    ocaml-stdint
   )
 )
