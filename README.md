@@ -23,6 +23,7 @@ step that's used in both parts.
   day 13     4.9 μs    4.6 μs   24.0 μs
   day 14    28.8 μs   52.3 MS
   day 15    92.7 μs    134 μs
-  day 16     119 μs   11.1 Ms
+  day 16     119 μs   11.1 MS
+  day 17    43.0 MS    118 MS
 ------------------------------------------
 ```
