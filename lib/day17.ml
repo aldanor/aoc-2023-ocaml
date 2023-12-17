@@ -148,6 +148,98 @@ module Map = struct
           loop ()
     in
     loop () |> Option.value_exn
+
+  let a_star_with_turn_constraints_ultra {w; h; a} d =
+    (* we'll use dijkstra distance matrix as a* heuristic *)
+    let module Local = struct
+      type state =
+        { pos: int (* position in the map *)
+        ; x: int (* x position in the map *)
+        ; y: int (* y position in the map *)
+        ; dir: int (* direction last travelled, nesw=0123 *)
+        ; count: int (* how many steps in this direction, minus 1 *)
+        ; dist: int (* distance travelled so far *)
+        ; prio: int (* heap priority *) }
+    end in
+    let open Local in
+    let row = w + 2 in
+    let n = Bytes.length a in
+    let frontier =
+      Pairing_heap.create ~min_size:n
+        ~cmp:(fun s1 s2 -> Int.compare s1.prio s2.prio)
+        ()
+    in
+    let start, finish = ((1 * row) + 1, (h * row) + w) in
+    let get_index pos dir count = (pos * 24) + (dir * 6) + count in
+    let dist = Array.create ~len:(n * 24) _MAX in
+    for dir = 0 to 3 do
+      for count = 0 to 5 do
+        dist.(get_index start dir count) <- 0
+      done
+    done ;
+    let start_state dir =
+      (* count = 5 -> force to turn immediately *)
+      dist.(get_index start dir 5) <- 0 ;
+      {pos= start; x= 1; y= 1; dir; count= 5; prio= 0; dist= 0}
+    in
+    Pairing_heap.add frontier (start_state 1) ;
+    Pairing_heap.add frontier (start_state 2) ;
+    let neighbor_offsets =
+      [|(-row, 0, -1); (1, 1, 0); (row, 0, 1); (-1, -1, 0)|]
+    in
+    let agg_costs =
+      Array.init 4 ~f:(fun dir ->
+          let arr = Bytes.create n in
+          Bytes.fill arr ~pos:0 ~len:n '\x00' ;
+          let dpos, _, _ = neighbor_offsets.(dir) in
+          for y = 1 to h do
+            for x = 1 to w do
+              let p = (y * row) + x in
+              let pos, v = (ref p, ref 0) in
+              for _ = 1 to 4 do
+                v :=
+                  !v + Char.to_int (Bytes.get a (max 0 (min (n - 1) !pos))) ;
+                pos := !pos - dpos
+              done ;
+              Bytes.set arr p (Char.unsafe_of_int !v)
+            done
+          done ;
+          arr )
+    in
+    let rec loop () =
+      match Pairing_heap.pop frontier with
+      | None -> None
+      | Some s when s.pos = finish -> Some s.dist
+      | Some s ->
+          for dir = 0 to 3 do
+            let dpos, dx, dy = neighbor_offsets.(dir) in
+            let steps = ref 0 in
+            if dir = s.dir && s.count < 5 (* move forward *) then steps := 1
+            else if dir land 1 <> s.dir land 1 (* turn left or right *) then
+              steps := 4 ;
+            match !steps with
+            | 0 -> ()
+            | steps ->
+                let x, y = (s.x + (dx * steps), s.y + (dy * steps)) in
+                if x >= 1 && x <= w && y >= 1 && y <= h then
+                  (* important: count = -1 here and not 0 *)
+                  let count = if steps = 1 then s.count + 1 else -1 in
+                  let next = s.pos + (dpos * steps) in
+                  let cost =
+                    Bytes.get (if steps = 1 then a else agg_costs.(dir)) next
+                  in
+                  let new_cost = s.dist + Char.to_int cost in
+                  let idx = get_index next dir count in
+                  let next_dist = dist.(idx) in
+                  if new_cost < next_dist then (
+                    dist.(idx) <- new_cost ;
+                    let prio = new_cost + Array.get d next in
+                    Pairing_heap.add frontier
+                      {pos= next; x; y; dir; count; dist= new_cost; prio} )
+          done ;
+          loop ()
+    in
+    loop () |> Option.value_exn
 end
 
 module M = struct
@@ -161,7 +253,11 @@ module M = struct
     let dist = Map.rev_dijkstra_no_turn_constraints map in
     Map.a_star_with_turn_constraints map dist |> Int.to_string
 
-  let part2 _ = ""
+  let part2 s =
+    (* 1312 *)
+    let map = Map.of_string s in
+    let dist = Map.rev_dijkstra_no_turn_constraints map in
+    Map.a_star_with_turn_constraints_ultra map dist |> Int.to_string
 end
 
 include M
@@ -181,4 +277,9 @@ let%expect_test _ =
    1224686865563\n\
    2546548887735\n\
    4322674655533" |> run_test ;
-  [%expect {| 102 |}]
+  [%expect {| 102 94 |}]
+
+let%expect_test _ =
+  "111111111111\n999999999991\n999999999991\n999999999991\n999999999991"
+  |> run_test ~part:2 ;
+  [%expect {| 71 |}]
