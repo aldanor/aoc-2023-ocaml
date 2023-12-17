@@ -27,5 +27,6 @@
     ppx_deriving
     pp-binary-ints
     ocaml-stdint
+    core_kernel
   )
 )
