@@ -26,5 +26,6 @@ step that's used in both parts.
   day 16     119 μs   11.1 MS
   day 17    43.0 MS    118 MS
   day 18    14.2 μs   26.6 μs
+  day 19     187 μs    191 μs
 ------------------------------------------
 ```

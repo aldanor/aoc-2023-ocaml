@@ -1,7 +1,7 @@
 open Core
 open Imports
 
-(* special cases: 0 is reject, 1 is accept *)
+(* special cases: 0 is reject, 1 is accept, 2 is start *)
 type workflow_id = int [@@deriving show {with_path= false}]
 
 type operator = Less | Greater [@@deriving show {with_path= false}]
@@ -22,7 +22,7 @@ type problem =
   ; n_parts: int }
 [@@deriving show {with_path= false}]
 
-let parse_inputs s =
+let parse_inputs s ~parse_parts =
   let module P = StreamParser in
   let p = P.create s in
   let max_workflows = 512 in
@@ -93,19 +93,61 @@ let parse_inputs s =
   let max_parts = 512 in
   let parts = Array.create ~len:(max_parts * 4) 0 in
   let n_parts, i = (ref 0, ref 0) in
-  while P.not_eof p do
-    P.skip p 2 ;
-    for _ = 0 to 3 do
+  if parse_parts then
+    while P.not_eof p do
       P.skip p 2 ;
-      parts.(!i) <- P.parse_int p ;
-      incr i
+      for _ = 0 to 3 do
+        P.skip p 2 ;
+        parts.(!i) <- P.parse_int p ;
+        incr i
+      done ;
+      incr n_parts
     done ;
-    incr n_parts
-  done ;
   { workflows
   ; n_workflows= Hashtbl.length workflow_ids
   ; parts
   ; n_parts= !n_parts }
+
+type interval = {lo: int; hi: int}
+
+let pp_interval ppf {lo; hi} = Format.fprintf ppf "%d..=%d" lo hi
+
+let show_interval {lo; hi} = sprintf "%d..=%d" lo hi
+
+type box = {x: interval; m: interval; a: interval; s: interval}
+[@@deriving show {with_path= false}]
+
+let volume {x; m; a; s} =
+  (x.hi - x.lo + 1)
+  * (m.hi - m.lo + 1)
+  * (a.hi - a.lo + 1)
+  * (s.hi - s.lo + 1)
+
+let split_interval iv op value =
+  let {lo; hi}, yes, no = (iv, ref None, ref None) in
+  ( match op with
+  | Less ->
+      if hi < value then yes := Some iv
+      else if lo < value then yes := Some {lo; hi= value - 1} ;
+      if lo >= value then no := Some iv
+      else if hi >= value then no := Some {lo= value; hi}
+  | Greater ->
+      if lo > value then yes := Some iv
+      else if hi > value then yes := Some {lo= value + 1; hi} ;
+      if hi <= value then no := Some iv
+      else if lo <= value then no := Some {lo; hi= value} ) ;
+  (!yes, !no)
+
+let split_box box dim op value =
+  let iv, f =
+    match dim with
+    | 0 -> (box.x, fun x -> {box with x})
+    | 1 -> (box.m, fun m -> {box with m})
+    | 2 -> (box.a, fun a -> {box with a})
+    | _ -> (box.s, fun s -> {box with s})
+  in
+  let yes, no = split_interval iv op value in
+  (Option.map ~f yes, Option.map ~f no)
 
 module M = struct
   type t = string
@@ -114,7 +156,7 @@ module M = struct
 
   let part1 s =
     (* 368523 *)
-    let p = parse_inputs s in
+    let p = parse_inputs s ~parse_parts:true in
     let part_score o =
       p.parts.(o + 0) + p.parts.(o + 1) + p.parts.(o + 2) + p.parts.(o + 3)
     in
@@ -146,7 +188,39 @@ module M = struct
     done ;
     !score |> Int.to_string
 
-  let part2 _ = ""
+  let part2 s =
+    (* 124167549767307 *)
+    let p = parse_inputs s ~parse_parts:false in
+    let ans = ref 0 in
+    let rec f queue =
+      match queue with
+      | [] -> ()
+      | (_, [], 0) :: queue -> f queue
+      | (box, [], 1) :: queue ->
+          ans := !ans + volume box ;
+          f queue
+      | (box, [], wid) :: queue ->
+          let w = p.workflows.(wid) in
+          f ((box, w.conditions, w.otherwise) :: queue)
+      | (box, {dim; op; value; wid} :: rest, otherwise) :: queue ->
+          let yes, no = split_box box dim op value in
+          let queue =
+            match yes with
+            | None -> queue
+            | Some yes -> (yes, [], wid) :: queue
+          in
+          let queue =
+            match no with
+            | None -> queue
+            | Some no -> (no, rest, otherwise) :: queue
+          in
+          f queue
+    in
+    let iv_start = {lo= 1; hi= 4000} in
+    let box_start = {x= iv_start; m= iv_start; a= iv_start; s= iv_start} in
+    let w_start = p.workflows.(2) in
+    f [(box_start, w_start.conditions, w_start.otherwise)] ;
+    !ans |> Int.to_string
 end
 
 include M
@@ -169,4 +243,4 @@ let%expect_test _ =
    {x=2036,m=264,a=79,s=2244}\n\
    {x=2461,m=1339,a=466,s=291}\n\
    {x=2127,m=1623,a=2188,s=1013}" |> run_test ;
-  [%expect {| 19114 |}]
+  [%expect {| 19114 167409079868000 |}]
