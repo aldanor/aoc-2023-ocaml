@@ -121,6 +121,10 @@ module StreamParser = struct
 
   let hd_equals_u p c = Char.(String.unsafe_get p.s p.pos = c)
 
+  let snd_u p = String.unsafe_get p.s (p.pos + 1)
+
+  let snd_equals_u p c = Char.(String.unsafe_get p.s (p.pos + 1) = c)
+
   let skip_to p c =
     while (not (is_eof p)) && not (hd_equals_u p c) do
       skip p 1
@@ -146,6 +150,9 @@ module StreamParser = struct
   let sub_u ?(pos = 0) p ~len = String.unsafe_sub p.s ~pos:(pos + p.pos) ~len
 
   let is_hd_digit_u p = String.unsafe_get p.s p.pos |> Char.is_digit
+
+  let is_hd_lowercase_u p =
+    match String.unsafe_get p.s p.pos with 'a' .. 'z' -> true | _ -> false
 
   let parse_sub_u p ~len =
     let s = String.unsafe_sub p.s ~pos:p.pos ~len in
