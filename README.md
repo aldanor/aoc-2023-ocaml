@@ -29,5 +29,6 @@ step that's used in both parts.
   day 19     187 μs    191 μs
   day 20     985 μs   3.90 MS   47.1 μs
   day 21     292 μs   4.76 MS
+  day 22     182 μs    403 μs
 ------------------------------------------
 ```
