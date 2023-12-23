@@ -38,3 +38,8 @@ _opam/
 inputs
 
 .session
+
+/*.in
+*.dot
+*.pdf
+tmp
