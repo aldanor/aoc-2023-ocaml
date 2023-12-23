@@ -9,7 +9,8 @@ let is_wall = Char.( = ) '#'
 
 let is_slope = function '>' | '<' | '^' | 'v' -> true | _ -> false
 
-let offsets m = [|-m.o; -1; 1; m.o|]
+(* let offsets m = [|-m.o; -1; 1; m.o|] *)
+let offsets m = [|-m.o; 1; m.o; -1|]
 
 let start m = m.o + 1
 
@@ -61,11 +62,16 @@ let find_forks ?(all = false) m =
   done ;
   !forks
 
-let dump_graph edges =
+let dump_graph ?(undirected = false) edges =
   printf "digraph maze {\n" ;
+  printf "  graph[layout = neato]\n" ;
   Array.iteri edges ~f:(fun i es ->
+      printf "  a%d;\n" i ;
       List.iter es ~f:(fun (j, d) ->
-          printf " a%d -> a%d [label=\"%d\"];\n" i j d ) ) ;
+          if not undirected then printf " a%d -> a%d[label=\"%d\"];\n" i j d
+          else if i < j then
+            printf "  a%d -> a%d[label=\"%d\",dir=\"none\"];\n" i j d
+          else () ) ) ;
   printf "}\n"
 
 let connect_forks m forks =
@@ -92,6 +98,53 @@ let connect_forks m forks =
         edges.(i) <- traverse nodes.(i) dir 0 :: edges.(i)
       done
   done ;
+  edges
+
+let connect_forks_undirected m forks =
+  (* directions are n=0, e=1, s=2, w=3 *)
+  let fork_rev_map = Array.create ~len:(String.length m.s) (-1) in
+  let start, finish = (start m, finish m) in
+  let nodes = start :: finish :: forks |> Array.of_list in
+  Array.iteri nodes ~f:(fun i f -> fork_rev_map.(f) <- i) ;
+  let next = next_options m in
+  let rec traverse k dir dist =
+    let j = fork_rev_map.(k) in
+    if j = -1 || dist = 0 then
+      let dir', d =
+        Array.find_exn next.(dir) ~f:(fun (_, d) ->
+            not (is_wall (String.get m.s (k + d))) )
+      in
+      traverse (k + d) dir' (dist + 1)
+    else (j, dir, dist)
+  in
+  let edges = Array.init (Array.length nodes) ~f:(fun _ -> []) in
+  let offsets = offsets m in
+  for i = 2 to Array.length nodes - 1 do
+    for dir = 0 to 3 do
+      let d = offsets.(dir) in
+      if not (is_wall (String.get m.s (nodes.(i) + d))) then
+        if not (List.exists edges.(i) ~f:(fun (_, _, d) -> d = dir)) then (
+          let j, dst_dir, dist = traverse (nodes.(i) + d) dir 1 in
+          edges.(i) <- (j, dist, dir) :: edges.(i) ;
+          edges.(j) <- (i, dist, (dst_dir + 2) mod 4) :: edges.(j) )
+    done
+  done ;
+  let edges =
+    edges |> Array.map ~f:(List.map ~f:(fun (i, d, _) -> (i, d)))
+  in
+  (* fold edges between same destinations *)
+  let edges =
+    Array.map edges ~f:(fun es ->
+        let m = Int.Table.create () in
+        List.iter es ~f:(fun (i, d) ->
+            let v =
+              Hashtbl.find m i
+              |> Option.map ~f:(max d)
+              |> Option.value ~default:d
+            in
+            Hashtbl.set m ~key:i ~data:v ) ;
+        Hashtbl.to_alist m )
+  in
   edges
 
 module M = struct
@@ -126,7 +179,29 @@ module M = struct
     done ;
     2 + longest.(1) |> Int.to_string
 
-  let part2 _ = ""
+  let part2 s =
+    (* 6630 *)
+    let forks = find_forks s ~all:true in
+    let edges = connect_forks_undirected s forks in
+    let longest = ref 0 in
+    let frontier = Queue.create () in
+    Queue.enqueue frontier (0, 1, 0) ;
+    while
+      match Queue.dequeue frontier with
+      | Some (1, _, dist) ->
+          longest := max !longest dist ;
+          true
+      | Some (i, seen, dist) ->
+          List.iter edges.(i) ~f:(fun (j, d) ->
+              let mask = 1 lsl j in
+              if seen land mask = 0 then
+                Queue.enqueue frontier (j, seen lor mask, dist + d) ) ;
+          true
+      | None -> false
+    do
+      ()
+    done ;
+    2 + !longest |> Int.to_string
 end
 
 include M
@@ -156,4 +231,4 @@ let%expect_test _ =
    #.###.###.#.###.#.#v###\n\
    #.....###...###...#...#\n\
    #####################.#" |> run_test ;
-  [%expect {| 94 |}]
+  [%expect {| 94 154 |}]
