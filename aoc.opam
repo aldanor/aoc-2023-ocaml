@@ -25,6 +25,7 @@ depends: [
   "pp-binary-ints"
   "ocaml-stdint"
   "core_kernel"
+  "bignum"
   "odoc" {with-doc}
 ]
 build: [

@@ -28,5 +28,6 @@
     pp-binary-ints
     ocaml-stdint
     core_kernel
+    bignum
   )
 )
