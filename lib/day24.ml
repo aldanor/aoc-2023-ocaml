@@ -6,6 +6,8 @@ module B = Bigint
 
 type big_int = Bigint.t
 
+type num_array = Bignum.t array
+
 type point = {x: big_int; y: big_int; z: big_int}
 (* [@@deriving eq] *)
 
@@ -39,8 +41,66 @@ let bounds ~test =
   in
   (Bigint.of_int lo, Bigint.of_int hi)
 
+module Gaussian = struct
+  module Array = struct
+    include Array
+
+    (* Computes: f a.(0) + f a.(1) + ... where + is 'g'. *)
+    let foldmap g f a =
+      let n = Array.length a in
+      let rec aux acc i =
+        if i >= n then acc else aux (g acc (f a.(i))) (succ i)
+      in
+      aux (f a.(0)) 1
+  end
+
+  let foldmap_range g f (a, b) =
+    let rec aux acc n =
+      let n = succ n in
+      if n > b then acc else aux (g acc (f n)) n
+    in
+    aux (f a) a
+
+  let fold_range f init (a, b) =
+    let rec aux acc n = if n > b then acc else aux (f acc n) (succ n) in
+    aux init a
+
+  (* Solve Ax=b for x, using gaussian elimination with scaled partial pivot,
+   * and then back-substitution of the resulting row-echelon matrix. *)
+  let solve (m : num_array array) (b : num_array) : num_array =
+    let open Bignum.O in
+    let n = Array.length m in
+    let n' = pred n in
+    let s = Array.(map ~f:(foldmap Bignum.max Bignum.abs) m) in
+    (* scaling vector *)
+    let a = Array.(init n ~f:(fun i -> append m.(i) [|b.(i)|])) in
+    for k = 0 to pred n' do
+      (* scaled partial pivot, to preserve precision *)
+      let pair i = (i, Bignum.abs (a.(i).(k) / s.(i))) in
+      let maxsnd a b = if snd a > snd b then a else b in
+      let i_max, v = foldmap_range maxsnd pair (k, n') in
+      if v < Bignum.trillionth then failwith "matrix is near-singular" ;
+      Array.swap a k i_max ;
+      Array.swap s k i_max ;
+      (* eliminate one column *)
+      for i = succ k to n' do
+        let tmp = a.(i).(k) / a.(k).(k) in
+        for j = succ k to n do
+          a.(i).(j) <- a.(i).(j) - (tmp * a.(k).(j))
+        done
+      done
+    done ;
+    (* backward substitution; 'b' is in the 'nth' column of 'a' *)
+    let x = Array.copy b in
+    for i = n' downto 0 do
+      let minus_dprod t j = t - (x.(j) * a.(i).(j)) in
+      x.(i) <- fold_range minus_dprod a.(i).(n) (succ i, n') / a.(i).(i)
+    done ;
+    x
+end
+
 module M = struct
-  type t = hailstone list
+  type t = hailstone array
 
   let parse s =
     let module P = Imports.StreamParser in
@@ -58,11 +118,10 @@ module M = struct
       let vz = P.parse_signed_int p ~skip:1 |> B.of_int in
       out := {p= {x; y; z}; v= {x= vx; y= vy; z= vz}} :: !out
     done ;
-    !out
+    !out |> List.rev |> Array.of_list
 
   let part1 ps =
     (* 16050 *)
-    let ps = Array.of_list (List.rev ps) in
     let n = Array.length ps in
     let lo, hi = bounds ~test:(n < 10) in
     let intersection_in_bounds h1 h2 =
@@ -107,7 +166,61 @@ module M = struct
     done ;
     !count |> Int.to_string
 
-  let part2 _ = ""
+  let part2 ps =
+    (* 669042940632377 *)
+    ()
+    (*
+    For a given i, we have
+    Pi + ti * Vi = P' + ti * V'
+    Pi - P' = ti * (V' - Vi)
+    => P_i - P' and V' - V_i are parallel, so
+    (V' - V_i) x (P_i - P') = 0
+    Expanding the terms, we get
+    P_i x V' - P_i x V_i - P' x V' + P' x V_i = 0
+    P_i x V' - P_i x V_i + P' x V_i = P' x V'
+    Right-hand side will be identical for all equations.
+    Consider a pair (i, j), we can then eliminate RHS non-linear term:
+    (vy' - vy_i) * (z_i - z') - (vz' - vz_i) * (y_i - y')
+      = (vy' - vy_j) * (z_j - z') - (vz' - vz_j) * (y_j - y')
+    (vz' - vz_i) * (x_i - x') - (vx' - vx_i) * (z_i - z')
+      = (vz' - vz_j) * (x_j - x') - (vx' - vx_j) * (z_j - z')
+    (vx' - vx_i) * (y_i - y') - (vy' - vy_i) * (x_i - x') 
+      = (vx' - vx_j) * (y_j - y') - (vy' - vy_j) * (x_j - x')
+    *)
+    [@ocamlformat "wrap-comments=false"] ;
+    let eqn_6x3_int hi hj =
+      let open Bigint.O in
+      let xi, yi, zi = (hi.p.x, hi.p.y, hi.p.z) in
+      let xj, yj, zj = (hj.p.x, hj.p.y, hj.p.z) in
+      let vxi, vyi, vzi = (hi.v.x, hi.v.y, hi.v.z) in
+      let vxj, vyj, vzj = (hj.v.x, hj.v.y, hj.v.z) in
+      let dx, dy, dz = (xi - xj, yi - yj, zi - zj) in
+      let dvx, dvy, dvz = (vxi - vxj, vyi - vyj, vzi - vzj) in
+      let yzi, yzj = ((vyi * zi) - (vzi * yi), (vyj * zj) - (vzj * yj)) in
+      let zxi, zxj = ((vzi * xi) - (vxi * zi), (vzj * xj) - (vxj * zj)) in
+      let xyi, xyj = ((vxi * yi) - (vyi * xi), (vxj * yj) - (vyj * xj)) in
+      let rx, ry, rz = (-yzi + yzj, -zxi + zxj, -xyi + xyj) in
+      let m =
+        [| [|B.zero; dvz; -dvy; B.zero; dz; -dy|]
+         ; [|-dvz; B.zero; dvx; -dz; B.zero; dx|]
+         ; [|dvy; -dvx; B.zero; dy; -dx; B.zero|] |]
+      in
+      let b = [|rx; ry; rz|] in
+      (m, b)
+    in
+    let eqn_6x6_num hi hj hk =
+      let mij, bij = eqn_6x3_int hi hj in
+      let mjk, bjk = eqn_6x3_int hj hk in
+      let conv_1d = Array.map ~f:Bignum.of_bigint in
+      let conv_2d = Array.map ~f:conv_1d in
+      let m = Array.concat [mij; mjk] |> conv_2d in
+      let b = Array.concat [bij; bjk] |> conv_1d in
+      (m, b)
+    in
+    let m, b = eqn_6x6_num ps.(0) ps.(1) ps.(2) in
+    let s = Gaussian.solve m b in
+    Bignum.O.(s.(0) + s.(1) + s.(2))
+    |> Bignum.to_bigint_opt |> Option.value_exn |> Bigint.to_string
 end
 
 include M
@@ -119,4 +232,4 @@ let%expect_test _ =
    20, 25, 34 @ -2, -2, -4\n\
    12, 31, 28 @ -1, -2, -1\n\
    20, 19, 15 @  1, -5, -3" |> run_test ;
-  [%expect {| 2 |}]
+  [%expect {| 2 47 |}]
