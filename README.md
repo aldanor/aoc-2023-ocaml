@@ -32,5 +32,6 @@ step that's used in both parts.
   day 22     182 μs    403 μs
   day 23     593 μs   2.09 S
   day 24    12.8 MS   16.4 μs    92.9μs
+  day 25    1.16 MS             1.15 MS
 ------------------------------------------
 ```
