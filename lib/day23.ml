@@ -64,7 +64,7 @@ let find_forks ?(all = false) m =
 
 let dump_graph ?(undirected = false) edges =
   printf "digraph maze {\n" ;
-  printf "  graph[layout = neato]\n" ;
+  printf "  graph[layout = neato, mode = KK]\n" ;
   Array.iteri edges ~f:(fun i es ->
       printf "  a%d;\n" i ;
       List.iter es ~f:(fun (j, d) ->
@@ -147,6 +147,99 @@ let connect_forks_undirected m forks =
   in
   edges
 
+module PathState = struct
+  (* each path chunk is a pair of (start, end) *)
+  (* chunks are kept in sorted order *)
+
+  type chunk = int * int
+  [@@deriving sexp_of, of_sexp, eq, hash, ord, show {with_path= false}]
+
+  type t = chunk list
+  [@@deriving sexp_of, of_sexp, eq, hash, ord, show {with_path= false}]
+
+  let empty : t = []
+
+  let rec insert p ~c =
+    (* insert chunk c into path p, keeping it sorted *)
+    match p with
+    | [] -> [c]
+    | c' :: p' ->
+        if compare_chunk c c' < 0 then c :: p else c' :: insert p' ~c
+
+  let rec remove p ~c =
+    (* remove chunk c from path p, keeping it sorted *)
+    match p with
+    | c' :: p' -> if equal_chunk c c' then p' else c' :: remove p' ~c
+    | _ -> assert false
+
+  let rec split p node =
+    (* remove head chunks from path p that don't contain node *)
+    match p with
+    | [] -> []
+    | (s, e) :: p' -> if s = node || e = node then p else split p' node
+
+  let find p node =
+    (* find chunk in path p that contains node *)
+    split p node |> List.hd
+
+  let find_pair p a b =
+    (* find a pair of distinct chunks in path p that contain nodes *)
+    match (find p a, find p b) with
+    | Some a, Some b when not (equal_chunk a b) -> Some (a, b)
+    | _ -> None
+end
+
+module PathTable = struct
+  module P = PathState
+
+  type t = (P.t, int) Hashtbl.t
+
+  module T = struct
+    include Hashtbl
+    include Hashtbl.Make (P)
+  end
+
+  let create () : t = T.of_alist_exn [(P.empty, 0)]
+
+  let insert_or_max (t : t) p v =
+    let v' = T.find t p |> Option.value_map ~default:v ~f:(max v) in
+    T.set t ~key:p ~data:v'
+
+  let insert_node (t : t) node =
+    t |> T.to_alist
+    |> List.map ~f:(fun (p, v) -> (P.insert p ~c:(node, node), v))
+    |> T.of_alist_exn
+
+  let remove_node (t : t) node =
+    (* note: this shouldn't be called if the node is start or finish *)
+    let t' = T.create () in
+    let f ~key:p' ~data:v' =
+      match P.find p' node with
+      | Some (s, e) ->
+          if s = e then insert_or_max t' (P.remove p' ~c:(s, e)) v'
+      | _ -> insert_or_max t' p' v'
+    in
+    T.iteri t ~f ; t'
+
+  let insert_edge (t : t) a b v =
+    let t' = T.copy t in
+    let select (x, y) node = if x = node then y else x in
+    let sort (x, y) = if x < y then (x, y) else (y, x) in
+    let f ~key:p' ~data:v' =
+      match P.find_pair p' a b with
+      | None -> ()
+      | Some (x, y) ->
+          let s, e = (select x a, select y b) |> sort in
+          let p' =
+            p' |> P.remove ~c:x |> P.remove ~c:y |> P.insert ~c:(s, e)
+          in
+          insert_or_max t' p' (v + v')
+    in
+    T.iteri t ~f ; t'
+
+  let find_exn (t : t) p = T.find_exn t p
+end
+
 module M = struct
   type t = maze
 
@@ -181,27 +274,46 @@ module M = struct
 
   let part2 s =
     (* 6630 *)
+    let module T = PathTable in
     let forks = find_forks s ~all:true in
     let edges = connect_forks_undirected s forks in
-    let longest = ref 0 in
-    let frontier = Queue.create () in
-    Queue.enqueue frontier (0, 1, 0) ;
+    let n = Array.length edges in
+    (* solver state begin *)
+    let queue = Queue.create () in
+    let enqueued = Array.create ~len:n false in
+    let seen = Array.create ~len:n false in
+    let edges_remaining = Array.map edges ~f:List.length in
+    let paths = ref (T.create ()) in
+    (* solver state end *)
+    let remove_edge i =
+      edges_remaining.(i) <- pred edges_remaining.(i) ;
+      if edges_remaining.(i) = 0 && i >= 2 then
+        paths := T.remove_node !paths i
+    in
+    let handle_edge i (j, d) =
+      if seen.(j) then (
+        paths := T.insert_edge !paths i j d ;
+        remove_edge i ;
+        remove_edge j )
+      else if not enqueued.(j) then (
+        enqueued.(j) <- true ;
+        Queue.enqueue queue j )
+    in
+    Queue.enqueue queue 0 ;
+    enqueued.(0) <- true ;
+    (* https://parameterized-algorithms.mimuw.edu.pl/parameterized-algorithms.pdf#chapter.7 *)
     while
-      match Queue.dequeue frontier with
-      | Some (1, _, dist) ->
-          longest := max !longest dist ;
-          true
-      | Some (i, seen, dist) ->
-          List.iter edges.(i) ~f:(fun (j, d) ->
-              let mask = 1 lsl j in
-              if seen land mask = 0 then
-                Queue.enqueue frontier (j, seen lor mask, dist + d) ) ;
-          true
+      match Queue.dequeue queue with
       | None -> false
+      | Some i ->
+          paths := T.insert_node !paths i ;
+          seen.(i) <- true ;
+          List.iter edges.(i) ~f:(handle_edge i) ;
+          true
     do
       ()
     done ;
-    2 + !longest |> Int.to_string
+    T.find_exn !paths [(0, 1)] + 2 |> Int.to_string
 end
 
 include M
