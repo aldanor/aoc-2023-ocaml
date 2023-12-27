@@ -14,7 +14,7 @@ being said... I believe most solutions here should be 'faster than average' (as 
 don't compare them with Rust/C++-like languages).
 
 These are the benchmark results taken on Apple M1; for some problems, there's a shared parsing
-step that's used in both parts and is benched separately.
+step that's used in both parts and is benched separately. Total time is a little under 300ms.
 
 ```
   day       part 1    part 2    parse
