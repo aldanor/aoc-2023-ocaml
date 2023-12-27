@@ -2,8 +2,19 @@
 
 Advent of Code 2022 -- somewhat optimized OCaml solutions.
 
+Note: many of the days here could be optimized further by using more efficient data structures
+or more intricate algorithms. However, the point of this run, first and foremost, was for me to 
+get familiar with OCaml (which I had zero experience with until day 1). In the end, that goal
+was completed: I've tried out various types from Core, built some lexers/parsers with menhir,
+built some character-level imperative parsers manually, tested various containers from Base/Core
+like hashtables, heaps and queues, checked out bigints and bignums, and lots of other stuff,
+like ppx, sexps, formatting, opam/dune tooling, benching tools, and much more). Also, some of 
+the solutions will run faster with Flambda, but, again, that's not the main point here. That
+being said... I believe most solutions here should be 'faster than average' (as long as you
+don't compare them with Rust/C++-like languages).
+
 These are the benchmark results taken on Apple M1; for some problems, there's a shared parsing
-step that's used in both parts.
+step that's used in both parts and is benched separately.
 
 ```
   day       part 1    part 2    parse
