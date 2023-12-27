@@ -5,4 +5,4 @@
  (inline_tests)
  (libraries core unix fmt mtime mtime.clock.os core_bench pp-binary-ints stdint core_kernel.pairing_heap bignum)
  (preprocess
-  (pps ppx_expect ppx_sexp_conv ppx_deriving.show ppx_deriving.eq ppx_deriving.enum)))
+  (pps ppx_expect ppx_sexp_conv ppx_deriving.show ppx_deriving.eq ppx_deriving.enum ppx_deriving_hash ppx_deriving.std)))

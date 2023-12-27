@@ -25,6 +25,8 @@
     ppx_sexp_conv
     ppx_jane
     ppx_deriving
+    ppx_deriving_hash
+    ppx_deriving_ord
     pp-binary-ints
     ocaml-stdint
     core_kernel
